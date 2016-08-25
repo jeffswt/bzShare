@@ -149,6 +149,15 @@ body.hold-transition .main-header .logo {
   margin-left: auto;
   padding-left: 15px;
   padding-right: 15px;
+  font-size: 16px;
+  position: relative;
+}
+/* Content paragraph */
+.content-wrapper p {
+  padding: 0 10px;
+  font-size: 16px;
+  position: relative;
+  z-index: 30;
 }
 /* H1 - H6 font */
 h1,

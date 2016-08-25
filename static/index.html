@@ -15,7 +15,7 @@
   <!-- jvectormap -->
   <link rel="stylesheet" href="plugins/jvectormap/jquery-jvectormap-1.2.2.css">
   <!-- Theme style -->
-  <link rel="stylesheet" href="dist/css/AdminLTE.min.css">
+  <link rel="stylesheet" href="dist/css/AdminLTE.css">
   <!-- AdminLTE Skins. Choose a skin from the css/skins
        folder instead of downloading all of them to reduce the load. -->
   <link rel="stylesheet" href="dist/css/skins/_all-skins.min.css">
@@ -35,7 +35,7 @@
   <header class="main-header">
 
     <!-- Logo -->
-    <a href="#" class="logo">
+    <a href="javascript:bzsModifyMainFrame('/home')" class="logo">
       <!-- mini logo for sidebar mini 50x50 pixels -->
       <span class="logo-mini"><i>bz</i><b>S</b></span>
       <!-- logo for regular state and mobile devices --><em>bz</em><strong>Share</strong><br>
@@ -123,6 +123,15 @@
       <!-- sidebar menu: : style can be found in sidebar.less -->
       <ul class="sidebar-menu">
         <li class="header">NAVIGATION PANE</li>
+        <li>
+          <a href="javascript:bzsModifyMainFrame('/home')">
+            <i class="fa fa-dashboard"></i>
+            <span>Home</span>
+            <span class="pull-right-container">
+            </span>
+          </a>
+        </li>
+        
         <li class="treeview">
           <a href="#">
             <i class="fa fa-files"></i>
@@ -132,43 +141,55 @@
           </a>
           <ul class="treeview-menu">
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/files/%%FILES_PUBLIC%%')">
                 <i class="fa fa-circle-o"></i>
                 Public Files
               </a>
             </li>
+            <!--USER_ONLY_BEGIN-->
             <li>
-              <a href="javascript:bzsModifyMainFrame('content.html')">
+              <a href="javascript:bzsModifyMainFrame('/files/%%FILES_PERSONAL%%')">
                 <i class="fa fa-circle-o"></i>
                 Personal Files
               </a>
             </li>
+            <!--USER_ONLY_END-->
+            <!--USER_ONLY_BEGIN-->
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/files')">
                 <i class="fa fa-circle-o"></i>
                 Browse Files
               </a>
             </li>
+            <!--USER_ONLY_END-->
           </ul>
         </li>
+        
+        <!--USER_ONLY_BEGIN-->
         <li>
-          <a href="#">
+          <a href="javascript:bzsModifyMainFrame('/forums')">
             <i class="fa fa-forums"></i>
             <span>Forums</span>
             <span class="pull-right-container">
             </span>
           </a>
         </li>
+        <!--USER_ONLY_END-->
+        
+        <!--USER_ONLY_BEGIN-->
         <li>
-          <a href="#">
+          <a href="javascript:bzsModifyMainFrame('/events')">
             <i class="fa fa-events"></i>
             <span>Events</span>
             <span class="pull-right-container">
           	</span>
           </a>
         </li>
+        <!--USER_ONLY_END-->
+        
+        <!--USER_ONLY_BEGIN-->
         <li>
-          <a href="#">
+          <a href="javascript:bzsModifyMainFrame('/messaging')">
             <i class="fa fa-messaging"></i>
             <span>Messaging</span>
             <span class="pull-right-container">
@@ -176,8 +197,10 @@
           	</span>
           </a>
         </li>
+        <!--USER_ONLY_END-->
+        
         <li class="treeview">
-          <a href="#">
+          <a href="">
             <i class="fa fa-online-judge"></i>
             <span>Online Judge</span>
             <span class="pull-right-container">
@@ -185,31 +208,32 @@
           </a>
           <ul class="treeview-menu">
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/online-judge/contests')">
                 <i class="fa fa-circle-o"></i>
                 Contests
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/online-judge/problemsets')">
                 <i class="fa fa-circle-o"></i>
                 Problemsets
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/online-judge/status')">
                 <i class="fa fa-circle-o"></i>
                 Status
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/online-judge/ratings')">
                 <i class="fa fa-circle-o"></i>
                 Ratings
               </a>
             </li>
           </ul>
         </li>
+        
         <!--{ADMIN_ONLY_BEGIN}-->
         <li class="treeview">
           <a href="#">
@@ -222,43 +246,37 @@
           </a>
           <ul class="treeview-menu">
             <li>
-              <a href="#">
-                <i class="fa fa-circle-o"></i>
-                Dashboard
-              </a>
-            </li>
-            <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/server-manager/system-availability')">
                 <i class="fa fa-circle-o"></i>
                 System Availability
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/server-manager/network-traffic')">
                 <i class="fa fa-circle-o"></i>
                 Network Traffic
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/server-manager/access-control')">
                 <i class="fa fa-circle-o"></i>
                 Access Control
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/server-manager/account-management')">
                 <i class="fa fa-circle-o"></i>
                 Account Management
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/server-manager/file-system')">
                 <i class="fa fa-circle-o"></i>
                 File System
               </a>
             </li>
             <li>
-              <a href="#">
+              <a href="javascript:bzsModifyMainFrame('/server-manager/secure-shell')">
                 <i class="fa fa-circle-o"></i>
                 Secure Shell
               </a>
@@ -266,16 +284,15 @@
           </ul>
         </li>
         <!--ADMIN_ONLY_END-->
+        
       </ul>
     </section>
     <!-- /.sidebar -->
   </aside>
 
-  <!--<iframe name="container-main-frame" src="content.html" />-->
-  <!-- Content Wrapper. Contains page content -->
+  <!-- Dynamically modified content wrapper. -->
   <div class="content-wrapper">
-    <div id="container-mainframe" class="animated fadeInRight">
-      This is something to test.
+    <div id="container-mainframe" class="animated">
     </div>
   </div>
   <!-- /.content-wrapper -->
@@ -307,5 +324,10 @@
 <script src="plugins/slimScroll/jquery.slimscroll.min.js"></script>
 <!-- ChartJS 1.0.1 -->
 <script src="plugins/chartjs/Chart.min.js"></script>
+<!-- Post-JS loading initializations -->
+<script>
+bzsModifyMainFrame('/home');
+</script>
+<!-- End of loading -->
 </body>
 </html>
