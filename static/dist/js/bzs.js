@@ -32,13 +32,14 @@ var bzsModifyMainFrame = function(address)
   }
   var xml_request = new XMLHttpRequest();
   var mainframe_body = document.getElementById('container-mainframe')
-  xml_request.open('html', address, false, '', '');
+  xml_request.open('GET', address, false, '', '');
   try {
     xml_request.send();
   } catch (except) {}
   var __container_mainframe_modify_proc_2 = function() {
-    if (!xml_request.responseText) {
+    if (!xml_request.responseText || xml_request.status != 200) {
       mainframe_body.innerHTML = error_page_404;
+      bzsModifyMainFrame_last = ''; // That should be cleared.
     } else {
       mainframe_body.innerHTML = xml_request.responseText;
 	  bzsModifyMainFrame_last = address; // Setting for not clicking too much.
