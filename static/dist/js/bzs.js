@@ -4,48 +4,64 @@
  * should be included in all pages. It controls some layout
  * options and implements exclusive bzShare plugins.
  *
- * @Author  Geoffrey, Tang.
+ * @Author    Geoffrey, Tang.
  * @Support <http://ht35268.github.io>
- * @Email   <ht35268@outlook.com>
+ * @Email     <ht35268@outlook.com>
  */
 
-//Make sure jQuery has been loaded before app.js
-if (typeof jQuery === "undefined") {
-  throw new Error("bzShare requires jQuery");
-}
+$('#container-mainframe').load('/home');
+var bzsReloadMainframeWorking = false;
+var bzsReloadMainframeLastAccess = '/home';
 
-var error_page_404 = "<section class=\"content\"><div class=\"error-page\"><h2 class=\"headline text-yellow\"> 404</h2><div class=\"error-content\">  <h3><i class=\"fa fa-warning text-yellow\"></i> Oops! Page not found.</h3><p>We could not find the page you were looking for. Meanwhile, you may <a href=\"javascript:bzsModifyMainFrame('/home')\">return to home</a> or try not using the search form.</p><form class=\"search-form\"><div class=\"input-group\"><input type=\"text\" disabled=true name=\"search\" class=\"form-control\" placeholder=\"Search bzShare\"><div class=\"input-group-btn\"><button type=\"submit\" name=\"\" class=\"btn btn-warning btn-flat\"><i class=\"fa fa-search\"></i></button></div></div></form></div></div></section>";
-
-var bzsModifyMainFrame_last = ''
-
-/* bzsModifyMainFrame
- * ==========
- * Changes the main frame into given target.
- *
- * @type Function
- * @usage: <a href="javascript:bzsModifyMainFrame(TARGET_ADDRESS)">
- */
-var bzsModifyMainFrame = function(address)
-{
-  if (bzsModifyMainFrame_last == address) {
-	return ;
-  }
-  var xml_request = new XMLHttpRequest();
-  var mainframe_body = document.getElementById('container-mainframe')
-  xml_request.open('GET', address, false, '', '');
-  try {
-    xml_request.send();
-  } catch (except) {}
-  var __container_mainframe_modify_proc_2 = function() {
-    if (!xml_request.responseText || xml_request.status != 200) {
-      mainframe_body.innerHTML = error_page_404;
-      bzsModifyMainFrame_last = ''; // That should be cleared.
-    } else {
-      mainframe_body.innerHTML = xml_request.responseText;
-	  bzsModifyMainFrame_last = address; // Setting for not clicking too much.
-    }
-	mainframe_body.setAttribute('class', 'animated fadeInRight');
-  };
-  mainframe_body.setAttribute('class', 'animated fadeOutLeft');
-  setTimeout(__container_mainframe_modify_proc_2, 800);
+var bzsReloadMainframe = function() {
+    var mainframe_body = $('#container-mainframe');
+    var opt_data = $(this).data('href');
+    if (bzsReloadMainframeWorking ||
+            $(this).data('href') == bzsReloadMainframeLastAccess)
+        return ;
+    bzsReloadMainframeWorking = true;
+    bzsReloadMainframeLastAccess = opt_data
+    mainframe_body.removeClass('fadeInRight').addClass('fadeOutLeft');
+    setTimeout(function() {
+        try {
+            mainframe_body.load(opt_data, function() {
+                mainframe_body.removeClass('fadeOutLeft').addClass('fadeInRight');
+                $('[data-href]').click(bzsReloadMainframe);
+                bzsAdaptContentToSize();
+                setTimeout(function() {
+                    bzsReloadMainframeWorking = false;
+                }, 800);
+            });
+        } catch (exception) {
+            return ;
+        }
+    }, 800);
+    return ;
 };
+
+var bzsAdaptContentToSize = function() {
+    var small_phone_width = 350;
+    var phone_width = 450;
+    var tablet_width = 768;
+    var current_width = $(window).width();
+    // Set hide settings on tablets
+    if (current_width <= tablet_width)
+        $('[selective-hidden="tablets"]').attr('hidden', 'hidden');
+    else
+        $('[selective-hidden="tablets"]').removeAttr('hidden');
+    // Set hide settings on phones
+    if (current_width <= phone_width)
+        $('[selective-hidden="phones"]').attr('hidden', 'hidden');
+    else
+        $('[selective-hidden="phones"]').removeAttr('hidden');
+    // Set hide settings on very small phones
+    if (current_width <= small_phone_width)
+        $('[selective-hidden="small-phones"]').attr('hidden', 'hidden');
+    else
+        $('[selective-hidden="small-phones"]').removeAttr('hidden');
+    return ;
+}
+bzsAdaptContentToSize();
+$(window).resize(bzsAdaptContentToSize);
+
+$('[data-href]').click(bzsReloadMainframe);
