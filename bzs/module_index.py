@@ -1,15 +1,6 @@
 
-import socket
-import threading
-import tornado
 import re
-
-import tornado.ioloop
-import tornado.iostream
-import tornado.web
-import tornado.gen
-import tornado.httputil
-from tornado.concurrent import run_on_executor
+import tornado
 
 from bzs import files
 from bzs import const
@@ -24,8 +15,17 @@ class MainframeHandler(tornado.web.RequestHandler):
     def get(self):
         # In case it does not exist.
         try:
-            file_data = files.get_static_data('./static/index.html')
+            future = tornado.concurrent.Future()
+            def get_index_html_async():
+                file_data = files.get_static_data('./static/index.html')
+                working_user = users.get_user_by_cookie(
+                    self.get_cookie('user_active_login', default=''))
+                file_data = preproc.preprocess_webpage(file_data, working_user)
+                future.set_result(file_data)
+            tornado.ioloop.IOLoop.instance().add_callback(get_index_html_async)
+            file_data = yield future
         except Exception:
+            print(Exception)
             self.set_status(404, "Not Found")
             self._headers = tornado.httputil.HTTPHeaders()
             self.add_header('Content-Length', '0')
@@ -33,7 +33,6 @@ class MainframeHandler(tornado.web.RequestHandler):
             return None
 
         # File actually exists, sending data
-        file_data = preproc.preprocess_webpage(file_data, users.User())
         self.set_status(200, "OK")
         self._headers = tornado.httputil.HTTPHeaders()
         self.add_header('Cache-Control', 'max-age=0')

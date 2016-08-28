@@ -1,3 +1,4 @@
+
 /*! bzShare bzs.js
  * ================
  * Main JS application file for bzShare. This file
@@ -9,36 +10,10 @@
  * @Email     <ht35268@outlook.com>
  */
 
-$('#container-mainframe').load('/home');
-var bzsReloadMainframeWorking = false;
-var bzsReloadMainframeLastAccess = '/home';
-
-var bzsReloadMainframe = function() {
-    var mainframe_body = $('#container-mainframe');
-    var opt_data = $(this).data('href');
-    if (bzsReloadMainframeWorking ||
-            $(this).data('href') == bzsReloadMainframeLastAccess)
-        return ;
-    bzsReloadMainframeWorking = true;
-    bzsReloadMainframeLastAccess = opt_data
-    mainframe_body.removeClass('fadeInRight').addClass('fadeOutLeft');
-    setTimeout(function() {
-        try {
-            mainframe_body.load(opt_data, function() {
-                mainframe_body.removeClass('fadeOutLeft').addClass('fadeInRight');
-                $('[data-href]').click(bzsReloadMainframe);
-                bzsAdaptContentToSize();
-                setTimeout(function() {
-                    bzsReloadMainframeWorking = false;
-                }, 800);
-            });
-        } catch (exception) {
-            return ;
-        }
-    }, 800);
-    return ;
-};
-
+/*
+ * Responsive content design functions:
+ *  - bzsAdaptContentToSize()
+ */
 var bzsAdaptContentToSize = function() {
     var small_phone_width = 350;
     var phone_width = 450;
@@ -64,4 +39,89 @@ var bzsAdaptContentToSize = function() {
 bzsAdaptContentToSize();
 $(window).resize(bzsAdaptContentToSize);
 
+/*
+ * AJAX seamless transitions
+ *  - bzsReloadMainframe() // triggered by buttons
+ *  - bzsReloadMainframeSeamless(url) // No effects, triggered by scripts
+ *  - bzsReloadMainframeRefresh() // No effects, reload the same page
+ */
+var bzsReloadMainframeWorking = false;
+var bzsReloadMainframeLastAccess = '/files';
+
+var bzsReloadMainframe = function() {
+    var mainframe_body = $('#container-mainframe');
+    var opt_data = $(this).data('href');
+    if (bzsReloadMainframeWorking)// ||
+            // $(this).data('href') == bzsReloadMainframeLastAccess)
+        return ;
+    bzsReloadMainframeWorking = true;
+    bzsReloadMainframeLastAccess = opt_data
+    // alert(bzsReloadMainframeLastAccess);
+    mainframe_body.removeClass('fadeInRight').addClass('fadeOutLeft');
+    setTimeout(function() {
+        try {
+            mainframe_body.load(opt_data, function() {
+                mainframe_body.removeClass('fadeOutLeft').addClass('fadeInRight');
+                $('[data-href]').click(bzsReloadMainframe);
+                bzsAdaptContentToSize();
+                setTimeout(function() {
+                    bzsReloadMainframeWorking = false;
+                }, 800);
+            });
+        } catch (exception) {
+            bzsReloadMainframeWorking = false;
+            return ;
+        }
+    }, 800);
+    return ;
+};
 $('[data-href]').click(bzsReloadMainframe);
+
+var bzsReloadMainframeSeamless = function(target) {
+    // The version that requires no animation (only reload)
+    var mainframe_body = $('#container-mainframe');
+    if (bzsReloadMainframeWorking)
+        return ;
+    bzsReloadMainframeWorking = true;
+    bzsReloadMainframeLastAccess = target;
+    try {
+        mainframe_body.load(target, function() {
+            $('[data-href]').click(bzsReloadMainframe);
+            bzsAdaptContentToSize();
+            bzsReloadMainframeWorking = false;
+        });
+    } catch (exception) {
+        bzsReloadMainframeWorking = false;
+        return ;
+    }
+    return ;
+};
+
+var bzsReloadMainframeRefresh = function() {
+    bzsReloadMainframeSeamless(bzsReloadMainframeLastAccess);
+    return ;
+}
+bzsReloadMainframeRefresh();
+
+/*
+ * Form actions
+ */
+
+var eventListener = function(event) {
+    // event.preventDefault();
+    alert(event);
+}
+$('#dialog-input-string-form').submit(eventListener)
+
+var bzsDialogInputStringLoad = function(title, placeholder, target) {
+    document.getElementById('dialog-input-string-header').innerHTML = title;
+    document.getElementById('dialog-input-string-body').innerHTML = placeholder;
+    // document.getElementById('dialog-input-string-body').setAttribute('data-target', target);
+    return ;
+}
+
+var bzsDialogInputStringSubmit = function() {
+    var upload_data = document.getElementById('dialog-input-string-text').innerHTML;
+    alert(upload_data);
+    bzsReloadMainframeRefresh();
+}

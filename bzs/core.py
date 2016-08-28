@@ -31,7 +31,7 @@ def main():
         (r'^/files/list/.*', module_files.FilesListHandler),
         (r'^/files/download/.*', module_files.FilesDownloadHandler),
         # (r'^/files/upload/.*', module_files.FilesUploadHandler),
-        # (r'^/files/operation/.*', module_files.FilesOperationHandler),
+        (r'^/files/operation/.*', module_files.FilesOperationHandler),
         (r'.*', module_error404.Error404Handler)
     ]).listen(WEB_PORT)
     # Boot I/O thread for asynchronous purposes

@@ -1,110 +1,229 @@
 <section class="content-header">
-  <h1>
-    Files
-    <small>Hither lays the cascading folders</small>
-  </h1>
-  <ol class="breadcrumb">
-    <li><a href="#" data-href="/home">Home</a></li>
-    <li class="active">Files</li>
-  </ol>
+    <h1>
+        Files
+        <small>Hither lays the cascading folders</small>
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="#" data-href="/home">Home</a></li>
+        <li class="active">Files</li>
+    </ol>
 </section>
 <section class="content">
-  <div class="row">
-    <div class="col-xs-12">
-      <div class="box">
-        <div class="box-header">
-          <div class="btn-group">
-            <button class="btn btn-info" type="button"><span class="ion ion-toggle-filled" style="font-size:16px"></span></button>
-            <button class="btn btn-info" type="button"><span class="ion ion-toggle" style="font-size:16px"></span></button>
-            <button class="btn btn-info" type="button"><span class="ion ion-social-buffer" style="font-size:16px"></span></button>
-            <button class="btn btn-info" type="button"><span class="ion ion-scissors" style="font-size:16px"></span></button>
-            <button class="btn btn-info" type="button"><span class="ion ion-trash-a" style="font-size:16px"></span></button>
-            <button class="btn btn-info" type="button"><span class="ion ion-share" style="font-size:16px"></span></button>
-          </div>
-          <div class="btn-group">
-            % for fldr in files_hierarchy_list:
-              % if 'disabled' in fldr and fldr['disabled']:
-                <button class="btn btn-default" type="button" disabled="true">
-              % else:
-                <button class="btn btn-default" type="button" data-href="${fldr['href_path']}">
-              % endif
-              ${fldr['folder_name']}
-              </button>
-            % endfor
-          </div>
-        </div>
-        <!-- /.box-header -->
-        <div class="box-body">
-          <table id="table-files-list" class="table table-bordered table-striped">
-            <thead>
-            <tr>
-              <th>Filename</th>
-              <th selective-hidden="small-phones">File Size</th>
-              <th selective-hidden="phones">Owner</th>
-              <th selective-hidden="tablets">MIME Type</th>
-              <th selective-hidden="phones">Date Uploaded</th>
-            </tr>
-            </thead>
-            <tbody>
-            % for attrib in files_attrib_list:
-            <tr>
-              <td>
-                <span style="float:left">
-                % if attrib['mime-type'] == 'directory/folder':
-                  <a href="#" data-href="${attrib['target-link']}">
-                  <span class="ion ion-folder" style="font-size:24px"></span>&nbsp;
-                  ${attrib['file-name']}
-                  </a>
-                % else:
-                  <span class="ion ion-document" style="font-size:24px"></span>&nbsp;
-                  ${attrib['file-name']}
-                % endif
-                </span>
-                <span style="float:right"
-                <div class="btn-group">
-                  % if attrib['mime-type'] != 'directory/folder':
-                  <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'"><div class="ion ion-arrow-down-a"></div></button>
-                  % endif
-                  <button class="btn btn-default" type="button"><div class="ion ion-edit"></div></button>
-                  <button class="btn btn-default" type="button"><div class="ion ion-checkmark-round"></div></button>
-                </span>
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="box">
+                <div class="box-header">
+                    <div class="btn-group">
+                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesCheckmarkToggleAll()"><span class="ion ion-toggle-filled" style="font-size:16px"></span></button>
+                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesMarkCopy()" id="files-checkmark-copy"><span class="ion ion-social-buffer" style="font-size:16px"></span></button>
+                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesMarkMove()" id="files-checkmark-move"><span class="ion ion-scissors" style="font-size:16px"></span></button>
+                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesMarkDelete()" id="files-checkmark-delete"><span class="ion ion-trash-a" style="font-size:16px"></span></button>
+                        <button class="btn btn-info" type="button" id="files-checkmark-paste" onclick="javascript:bzsFilesMarkPaste()"><span class="ion ion-share" style="font-size:16px"></span></button>
+                    </div>
+                    <div class="btn-group">
+                        % for fldr in files_hierarchy_list:
+                            % if 'disabled' in fldr and fldr['disabled']:
+                                <button class="btn btn-default" type="button" disabled="true">
+                            % else:
+                                <button class="btn btn-default" type="button" data-href="${fldr['href_path']}">
+                            % endif
+                            ${fldr['folder_name']}
+                            </button>
+                        % endfor
+                    </div>
                 </div>
-              </td>
-              <td selective-hidden="small-phones">${attrib['file-size']}</td>
-              <td selective-hidden="phones">${attrib['owner']}</td>
-              <td selective-hidden="tablets">
-              % if attrib['mime-type'] != 'directory/folder':
-              ${attrib['mime-type']}
-              % endif
-              </td>
-              <td selective-hidden="phones">${attrib['date-uploaded']}</td>
-            </tr>
-            % endfor
-            </tbody>
-            <tfoot>
-            </tfoot>
-          </table>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <table id="table-files-list" class="table table-bordered table-striped">
+                        <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th selective-hidden="small-phones">File Size</th>
+                            <th selective-hidden="phones">Owner</th>
+                            <th selective-hidden="tablets">MIME Type</th>
+                            <th selective-hidden="phones">Date Uploaded</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        % for attrib in files_attrib_list:
+                        <tr>
+                            <td>
+                                <span style="float:left">
+                                % if attrib['mime-type'] == 'directory/folder':
+                                    <a href="#" data-href="${attrib['target-link']}">
+                                    <span class="ion ion-folder" style="font-size:24px"></span>&nbsp;
+                                    ${attrib['file-name']}
+                                    </a>
+                                % else:
+                                    <span class="ion ion-document" style="font-size:24px"></span>&nbsp;
+                                    ${attrib['file-name']}
+                                % endif
+                                </span>
+                                <span style="float:right">
+                                <div class="btn-group">
+                                    % if attrib['mime-type'] != 'directory/folder':
+                                    <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'"><div class="ion ion-arrow-down-a"></div></button>
+                                    % endif
+                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name']}', '/files/operation/rename')" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
+                                    <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}"><div class="ion ion-checkmark-round"></div></button>
+                                </span>
+                                </div>
+                            </td>
+                            <td selective-hidden="small-phones">${attrib['file-size']}</td>
+                            <td selective-hidden="phones">${attrib['owner']}</td>
+                            <td selective-hidden="tablets">
+                            % if attrib['mime-type'] != 'directory/folder':
+                            ${attrib['mime-type']}
+                            % endif
+                            </td>
+                            <td selective-hidden="phones">${attrib['date-uploaded']}</td>
+                        </tr>
+                        % endfor
+                        </tbody>
+                        <tfoot>
+                        </tfoot>
+                    </table>
+                </div>
+                <!-- /.box-body -->
+            </div>
+            <!-- /.box -->
         </div>
-        <!-- /.box-body -->
-      </div>
-      <!-- /.box -->
+        <!-- /.col -->
     </div>
-    <!-- /.col -->
-  </div>
-  <!-- /.row -->
-  <!-- Execution Log -->
+    <!-- /.row -->
+    <!-- Execution Log -->
 </section>
 <!-- /.content -->
 
 <!-- Postload scripts -->
 <script>
 $('#table-files-list').DataTable({
-  "paging": false,
-  "lengthChange": false,
-  "searching": true,
-  "ordering": true,
-  "info": true,
-  "autoWidth": true
+    "paging": false,
+    "lengthChange": false,
+    "searching": true,
+    "ordering": true,
+    "info": true,
+    "autoWidth": true
 });
-$('#table-files-list_filter').attr('style', 'float:right')
+$('#table-files-list_filter').attr('style', 'float:right');
+
+var bzsFilesCheckmarkToggle = function() {
+    if ($(this).hasClass('btn-default'))
+        $(this).removeClass('btn-default').addClass('btn-info');
+    else
+        $(this).removeClass('btn-info').addClass('btn-default');
+    bzsFilesMarkResetButtons();
+    return ;
+};
+$('[data-files-checkmark-name]').click(bzsFilesCheckmarkToggle);
+
+var bzsFilesCheckmarkAllState = false;
+var bzsFilesCheckmarkToggleAll = function() {
+    if (bzsFilesCheckmarkAllState)
+        $('[data-files-checkmark-name]').removeClass('btn-info').addClass('btn-default');
+    else
+        $('[data-files-checkmark-name]').removeClass('btn-default').addClass('btn-info');
+    bzsFilesCheckmarkAllState ^= 1;
+    bzsFilesMarkResetButtons();
+    return ;
+};
+
+var bzsFilesMarkResetButtons = function() {
+    var arr = $('[data-files-checkmark-name]' + '.btn-info');
+    // According to selections
+    if (arr.length > 0) {
+        $('#files-checkmark-copy').removeAttr('disabled');
+        $('#files-checkmark-move').removeAttr('disabled');
+        $('#files-checkmark-delete').removeAttr('disabled');
+    } else {
+        $('#files-checkmark-copy').attr('disabled', 'disabled');
+        $('#files-checkmark-move').attr('disabled', 'disabled');
+        $('#files-checkmark-delete').attr('disabled', 'disabled');
+    }
+    // According to clipboard
+    try {
+        if (bzsFilesClipboard.length > 0)
+            $('#files-checkmark-paste').removeAttr('disabled');
+        else
+            $('#files-checkmark-paste').attr('disabled', 'disabled');
+    } catch (Exception) {
+        $('#files-checkmark-paste').attr('disabled', 'disabled');
+    }
+    return ;
+};
+bzsFilesMarkResetButtons();
+
+var bzsFilesMarkCopy = function() {
+    bzsFilesClipboard = []
+    bzsFilesClipboardOperation = 'copy'
+    var arr = $('[data-files-checkmark-name]' + '.btn-info')
+    for (var i = 0; i < arr.length; i++)
+        bzsFilesClipboard.push(arr[i].getAttribute('data-uuid'));
+    bzsFilesMarkResetButtons();
+    return ;
+};
+
+var bzsFilesMarkMove = function() {
+    bzsFilesClipboard = []
+    bzsFilesClipboardOperation = 'move'
+    var arr = $('[data-files-checkmark-name]' + '.btn-info')
+    for (var i = 0; i < arr.length; i++)
+        bzsFilesClipboard.push(arr[i].getAttribute('data-uuid'));
+    bzsFilesMarkResetButtons();
+    return ;
+};
+
+var bzsFilesMarkDelete = function() {
+    removeList = []
+    var arr = $('[data-files-checkmark-name]' + '.btn-info')
+    for (var i = 0; i < arr.length; i++)
+        removeList.push(arr[i].getAttribute('data-uuid'));
+    if (removeList.length <= 0)
+        return ;
+    // Now sending request to server to delete.
+    $.ajax({
+        method: "POST",
+        url: "/files/operation/",
+        data: JSON.stringify({
+            action: "delete",
+            source: removeList
+        }),
+        dataType: "json"
+    }).complete(function() { // As of jQuery 3, use complete(), otherwise always()
+        // Clear cache / clipboard in case of errors
+        bzsFilesClipboard = []
+        bzsFilesClipboardOperation = ""
+        bzsFilesMarkResetButtons();
+        bzsReloadMainframeRefresh();
+    });
+    return ;
+};
+
+var bzsFilesMarkPaste = function() {
+    // If there were anything to do about it
+    try {
+        if (bzsFilesClipboard.length <= 0)
+            return ;
+    } catch (Exception) {
+        return ;
+    }
+    // Perform a JSON message upload to remote server
+    $.ajax({
+        method: "POST",
+        url: "/files/operation/",
+        data: JSON.stringify({
+            action: bzsFilesClipboardOperation,
+            source: bzsFilesClipboard,
+            target: "${cwd_uuid}"
+        }),
+        dataType: "json"
+    }).complete(function() { // As of jQuery 3, use complete(), otherwise always()
+        // Clear cache / clipboard in case of errors
+        bzsFilesClipboard = []
+        bzsFilesClipboardOperation = ""
+        bzsFilesMarkResetButtons();
+        bzsReloadMainframeRefresh();
+    });
+    return ;
+};
 </script>
