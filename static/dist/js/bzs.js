@@ -106,22 +106,10 @@ bzsReloadMainframeRefresh();
 /*
  * Form actions
  */
-
-var eventListener = function(event) {
-    // event.preventDefault();
-    alert(event);
-}
-$('#dialog-input-string-form').submit(eventListener)
-
-var bzsDialogInputStringLoad = function(title, placeholder, target) {
+var bzsDialogInputStringLoad = function(title, placeholder, target, uuid) {
     document.getElementById('dialog-input-string-header').innerHTML = title;
-    document.getElementById('dialog-input-string-body').innerHTML = placeholder;
-    // document.getElementById('dialog-input-string-body').setAttribute('data-target', target);
+    $('#dialog-input-string-body').attr('value', placeholder);
+    $('#dialog-input-string-form').attr('action', target);
+    $('#dialog-input-string-form').attr('data-uuid', uuid);
     return ;
-}
-
-var bzsDialogInputStringSubmit = function() {
-    var upload_data = document.getElementById('dialog-input-string-text').innerHTML;
-    alert(upload_data);
-    bzsReloadMainframeRefresh();
 }

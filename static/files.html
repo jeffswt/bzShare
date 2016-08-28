@@ -64,19 +64,27 @@
                                     % if attrib['mime-type'] != 'directory/folder':
                                     <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'"><div class="ion ion-arrow-down-a"></div></button>
                                     % endif
-                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name']}', '/files/operation/rename')" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
+                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name']}', '/files/operation', '${attrib['uuid']}')" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
                                     <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}"><div class="ion ion-checkmark-round"></div></button>
                                 </span>
                                 </div>
                             </td>
-                            <td selective-hidden="small-phones">${attrib['file-size']}</td>
+                            <td selective-hidden="small-phones">
+                            % if attrib['mime-type'] != 'directory/folder':
+                            ${attrib['file-size']}
+                            % endif
+                            </td>
                             <td selective-hidden="phones">${attrib['owner']}</td>
                             <td selective-hidden="tablets">
                             % if attrib['mime-type'] != 'directory/folder':
                             ${attrib['mime-type']}
                             % endif
                             </td>
-                            <td selective-hidden="phones">${attrib['date-uploaded']}</td>
+                            <td selective-hidden="phones">
+                            % if attrib['mime-type'] != 'directory/folder':
+                            ${attrib['date-uploaded']}
+                            % endif
+                            </td>
                         </tr>
                         % endfor
                         </tbody>
@@ -128,6 +136,13 @@ var bzsFilesCheckmarkToggleAll = function() {
     return ;
 };
 
+var bzsFilesCheckmarkUncheckAll = function() {
+    $('[data-files-checkmark-name]').removeClass('btn-info').addClass('btn-default');
+    bzsFilesCheckmarkAllState = false;
+    bzsFilesMarkResetButtons();
+    return ;
+}
+
 var bzsFilesMarkResetButtons = function() {
     var arr = $('[data-files-checkmark-name]' + '.btn-info');
     // According to selections
@@ -153,13 +168,39 @@ var bzsFilesMarkResetButtons = function() {
 };
 bzsFilesMarkResetButtons();
 
+var bzsFilesMarkRenameWorking = false;
+var bzsFilesMarkRename = function(event) {
+    event.preventDefault();
+    if (bzsFilesMarkRenameWorking)
+        return false;
+    bzsFilesMarkRenameWorking = true;
+    var form_source = $(this).serializeArray();
+    var form_data = {};
+    for (var i = 0; i < form_source.length; i++)
+        form_data[form_source[i]['name']] = form_source[i]['value'];
+    form_data['action'] = 'rename';
+    form_data['source'] = $(this).data('uuid');
+    $.ajax({
+        method: 'POST',
+        url: '/files/operation',
+        data: JSON.stringify(form_data),
+        dataType: "json"
+    }).complete(function() { // As of jQuery 3, use complete(), otherwise always()
+        bzsReloadMainframeRefresh();
+        $('#dialog-input-string-container').modal('hide');
+        bzsFilesMarkRenameWorking = false;
+    });
+    return false;
+};
+$('#dialog-input-string-form').submit(bzsFilesMarkRename)
+
 var bzsFilesMarkCopy = function() {
     bzsFilesClipboard = []
     bzsFilesClipboardOperation = 'copy'
     var arr = $('[data-files-checkmark-name]' + '.btn-info')
     for (var i = 0; i < arr.length; i++)
         bzsFilesClipboard.push(arr[i].getAttribute('data-uuid'));
-    bzsFilesMarkResetButtons();
+    bzsFilesCheckmarkUncheckAll();
     return ;
 };
 
@@ -169,7 +210,7 @@ var bzsFilesMarkMove = function() {
     var arr = $('[data-files-checkmark-name]' + '.btn-info')
     for (var i = 0; i < arr.length; i++)
         bzsFilesClipboard.push(arr[i].getAttribute('data-uuid'));
-    bzsFilesMarkResetButtons();
+    bzsFilesCheckmarkUncheckAll();
     return ;
 };
 
@@ -183,7 +224,7 @@ var bzsFilesMarkDelete = function() {
     // Now sending request to server to delete.
     $.ajax({
         method: "POST",
-        url: "/files/operation/",
+        url: "/files/operation",
         data: JSON.stringify({
             action: "delete",
             source: removeList
@@ -210,7 +251,7 @@ var bzsFilesMarkPaste = function() {
     // Perform a JSON message upload to remote server
     $.ajax({
         method: "POST",
-        url: "/files/operation/",
+        url: "/files/operation",
         data: JSON.stringify({
             action: bzsFilesClipboardOperation,
             source: bzsFilesClipboard,
