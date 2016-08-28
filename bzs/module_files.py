@@ -4,6 +4,7 @@ import binascii
 import io
 import json
 import re
+import time
 import tornado
 
 from bzs import files
@@ -61,15 +62,15 @@ class FilesListHandler(tornado.web.RequestHandler):
 
             # Getting current directory content
             files_attrib_list = list()
-            try: # In case of a permission error.
-                for file_name in os.listdir(target_path):
+            for file_name in os.listdir(target_path):
+                try: # In case of a permission error.
                     actual_path = target_path + file_name
                     attrib = dict()
                     attrib['file-name'] = file_name
                     attrib['allow-edit'] = True
-                    attrib['file-size'] = '2.56 MB'
-                    attrib['owner'] = 'non-admin'
-                    attrib['date-uploaded'] = '08/08/2016 00:00:00'
+                    attrib['file-size'] = files.format_file_size(os.path.getsize(actual_path))
+                    attrib['owner'] = 'root'
+                    attrib['date-uploaded'] = time.ctime(os.path.getctime(actual_path))
                     # Detecting whether is a folder
                     if os.path.isdir(actual_path):
                         attrib['mime-type'] = 'directory/folder'
@@ -82,8 +83,8 @@ class FilesListHandler(tornado.web.RequestHandler):
                         attrib['target-link'] = '/files/download/%s/%s' % (encode_str_to_hexed_b64(actual_path), file_name)
                     attrib['uuid'] = encode_str_to_hexed_b64(actual_path)
                     files_attrib_list.append(attrib)
-            except Exception:
-                pass
+                except Exception:
+                    pass
             cwd_uuid = encode_str_to_hexed_b64(files_hierarchy_cwd)
 
             # File actually exists, sending data
@@ -198,16 +199,24 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             operation_content = json.loads(operation_content_raw.decode('utf-8', 'ignore'))
             action = operation_content['action']
             sources = operation_content['source']
-            for i in range(0, len(sources)):
-                try:
-                    sources[i] = decode_hexed_b64_to_str(sources[i])
-                except:
-                    pass
+            if type(sources) == list:
+                for i in range(0, len(sources)):
+                    try:
+                        sources[i] = decode_hexed_b64_to_str(sources[i])
+                    except:
+                        pass
+            else:
+                sources = decode_hexed_b64_to_str(sources)
             if action in ['copy', 'move']:
                 try:
                     target = decode_hexed_b64_to_str(operation_content['target'])
                 except:
                     target = '/'
+            elif action in ['rename']:
+                try:
+                    target = operation_content['target']
+                except:
+                    target = sources # I am not handling more exceptions as this is brutal enough
             # Done assigning values, now attempting to perform operation
             if action == 'copy':
                 for source in sources:
@@ -218,6 +227,8 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             elif action == 'delete':
                 for source in sources:
                     os.system('rm "D:%s"' % source)
+            elif action == 'rename':
+                os.system('rename "D:%s" "%s"' % (sources, target))
             future.set_result('')
         tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async)
         file_temp = yield future
