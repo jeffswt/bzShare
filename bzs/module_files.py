@@ -27,16 +27,15 @@ class FilesListHandler(tornado.web.RequestHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
-    def get(self):
+    def get(self, target_path):
         # Another concurrency blob...
         future = tornado.concurrent.Future()
 
-        def get_final_html_async():
+        def get_final_html_async(target_path):
             # Getting file template.
             file_temp = files.get_static_data('./static/files.html')
 
             # Retrieving list target.
-            target_path = re.sub('/files(/list/)?', '', self.request.uri)
             try:
                 target_path = decode_hexed_b64_to_str(target_path)
             except:
@@ -95,7 +94,8 @@ class FilesListHandler(tornado.web.RequestHandler):
                 files_hierarchy_list=files_hierarchy_list,
                 cwd_uuid=cwd_uuid)
             future.set_result(file_temp)
-        tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async)
+        tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async,
+            target_path)
         file_temp = yield future
 
         self.set_status(200, "OK")
@@ -118,7 +118,7 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
-    def get(self):
+    def get(self, file_path, file_name):
         # Something that I do not wish to write too many times..
         def invoke_404():
             self.set_status(404, "Not Found")
@@ -128,11 +128,10 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
             return
 
         # Get file location (exactly...)
-        file_path = re.sub(r'^/files/download/(.*?)/.*$', r'\1', self.request.uri)
         try:
             file_path = decode_hexed_b64_to_str(file_path)
         except Exception:
-            target_path = ''
+            file_path = ''
         if not file_path:
             invoke_404()
             return
@@ -212,7 +211,7 @@ class FilesOperationHandler(tornado.web.RequestHandler):
                     target = decode_hexed_b64_to_str(operation_content['target'])
                 except:
                     target = '/'
-            elif action in ['rename']:
+            elif action in ['rename', 'new-folder']:
                 try:
                     target = operation_content['target']
                 except:
@@ -229,6 +228,8 @@ class FilesOperationHandler(tornado.web.RequestHandler):
                     os.system('rm "D:%s"' % source)
             elif action == 'rename':
                 os.system('rename "D:%s" "%s"' % (sources, target))
+            elif action == 'new-folder':
+                os.system('mkdir "D:%s%s"' % (sources, target))
             future.set_result('')
         tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async)
         file_temp = yield future
@@ -245,3 +246,52 @@ class FilesOperationHandler(tornado.web.RequestHandler):
     pass
 
 ################################################################################
+
+class FilesUploadHandler(tornado.web.RequestHandler):
+    SUPPORTED_METHODS = ['POST']
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
+    def post(self, target_path, file_name):
+        # Another concurrency blob...
+        future = tornado.concurrent.Future()
+
+        def save_file_async(alter_ego, target_path, file_name):
+            upload_data = alter_ego.request.body
+            target_path = decode_hexed_b64_to_str(target_path)
+            # Attempting to write to file... otherwise might try to rename until
+            # File does not exist.
+            def get_non_duplicate_path(file_path):
+                if not os.path.exists('D:' + file_path):
+                    return file_path
+                duplicate = 1
+                while duplicate < 101:
+                    new_path = re.sub(r'\.(.*?)$', ' (%d).\\1' % duplicate, file_path)
+                    if not os.path.exists('D:' + new_path):
+                        return new_path
+                    duplicate = duplicate + 1
+                return ''
+            file_path = get_non_duplicate_path(target_path + file_name)
+            if not file_path:
+                future.set_result('bzs_upload_failure')
+                return
+            # Committing changes to database
+            file_stream = open(file_path, 'wb')
+            file_stream.write(upload_data)
+            file_stream.close()
+            # Final return
+            future.set_result('bzs_upload_success')
+        tornado.ioloop.IOLoop.instance().add_callback(save_file_async,
+            self, target_path, file_name)
+
+        response_temp = yield future
+        self.set_status(200, "OK")
+        self.add_header('Cache-Control', 'max-age=0')
+        self.add_header('Connection', 'close')
+        self.add_header('Content-Type', 'text/html')
+        self.add_header('Content-Length', str(len(response_temp)))
+        self.write(response_temp)
+        self.flush()
+        self.finish()
+        return self
+    pass

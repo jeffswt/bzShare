@@ -1,7 +1,18 @@
+
+<style>
+.files-upload-transition {
+    transition: background-color .2s ease-out, opacity .2s ease-out;
+}
+.files-upload-dragging {
+    background-color: #6fa9e9;
+    opacity: .41;
+}
+</style>
+
 <section class="content-header">
     <h1>
-        Files
-        <small>Hither lays the cascading folders</small>
+        ${files_hierarchy_list[len(files_hierarchy_list) - 1]['folder_name']}
+        <small>Folders laid yonder void</small>
     </h1>
     <ol class="breadcrumb">
         <li><a href="#" data-href="/home">Home</a></li>
@@ -9,16 +20,19 @@
     </ol>
 </section>
 <section class="content">
+    <input id="files-upload-uploader-hidden" type="file" multiple="multiple" style="display:none; height: 34px; padding-top:4px; width: 225px;">
     <div class="row">
         <div class="col-xs-12">
             <div class="box">
                 <div class="box-header">
                     <div class="btn-group">
-                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesCheckmarkToggleAll()"><span class="ion ion-toggle-filled" style="font-size:16px"></span></button>
-                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesMarkCopy()" id="files-checkmark-copy"><span class="ion ion-social-buffer" style="font-size:16px"></span></button>
-                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesMarkMove()" id="files-checkmark-move"><span class="ion ion-scissors" style="font-size:16px"></span></button>
-                        <button class="btn btn-info" type="button" onclick="javascript:bzsFilesMarkDelete()" id="files-checkmark-delete"><span class="ion ion-trash-a" style="font-size:16px"></span></button>
-                        <button class="btn btn-info" type="button" id="files-checkmark-paste" onclick="javascript:bzsFilesMarkPaste()"><span class="ion ion-share" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCheckmarkToggleAll()"><span class="ion ion-toggle-filled" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:$('#files-upload-uploader-hidden').click();"><span class="ion ion-arrow-up-a" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCreateFolder()"><span class="ion ion-folder" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkCopy()" id="files-checkmark-copy"><span class="ion ion-social-buffer" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkMove()" id="files-checkmark-move"><span class="ion ion-scissors" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkDelete()" id="files-checkmark-delete"><span class="ion ion-trash-a" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" id="files-checkmark-paste" onclick="javascript:bzsFilesMarkPaste()"><span class="ion ion-share" style="font-size:16px"></span></button>
                     </div>
                     <div class="btn-group">
                         % for fldr in files_hierarchy_list:
@@ -34,6 +48,36 @@
                 </div>
                 <!-- /.box-header -->
                 <div class="box-body">
+                    <!-- uploader_box -->
+                    <div class="panel box box-primary" id="files-upload-placeholder" hidden="hidden">
+                        <a data-toggle="collapse" href="#files-upload-placeholder-collapse">
+                        <div class="box-header with-border">
+                            <h4 class="box-title pull-left" style="padding-right:20px">
+                                Uploading files...
+                            </h4>
+                        </div>
+                        </a>
+                        <div id="files-upload-placeholder-collapse" class="panel-collapse collapse in">
+                        <div class="box-body">
+                            <table id="table-uploading-list" class="table table-bordered table-striped">
+                                <thead>
+                                <tr>
+                                    <th style="width:65%">Filename</th>
+                                    <th>Progress</th>
+                                </tr>
+                                </thead>
+                                <tbody id="files-upload-display">
+                                <%"""
+                                    <tr><td>Filename</td><td><div class="progress active"><div class="progress-bar progress-bar-primary progress-bar-striped" style="width:0%"></div></div></td></tr>
+                                """%>
+                                </tbody>
+                                <tfoot>
+                                </tfoot>
+                            </table>
+                        </div>
+                        </div>
+                    </div>
+                    <!-- /.uploader_box -->
                     <table id="table-files-list" class="table table-bordered table-striped">
                         <thead>
                         <tr>
@@ -64,7 +108,7 @@
                                     % if attrib['mime-type'] != 'directory/folder':
                                     <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'"><div class="ion ion-arrow-down-a"></div></button>
                                     % endif
-                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name']}', '/files/operation', '${attrib['uuid']}')" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
+                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
                                     <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}"><div class="ion ion-checkmark-round"></div></button>
                                 </span>
                                 </div>
@@ -105,6 +149,7 @@
 
 <!-- Postload scripts -->
 <script>
+
 $('#table-files-list').DataTable({
     "paging": false,
     "lengthChange": false,
@@ -114,6 +159,8 @@ $('#table-files-list').DataTable({
     "autoWidth": true
 });
 $('#table-files-list_filter').attr('style', 'float:right');
+
+////////////////////////////////////////////////////////////////////////////////
 
 var bzsFilesCheckmarkToggle = function() {
     if ($(this).hasClass('btn-default'))
@@ -168,6 +215,45 @@ var bzsFilesMarkResetButtons = function() {
 };
 bzsFilesMarkResetButtons();
 
+////////////////////////////////////////////////////////////////////////////////
+
+var bzsFilesCreateFolderWorking = false;
+var bzsFilesCreateFolderAction = function(event) {
+    event.preventDefault();
+    if (bzsFilesCreateFolderWorking)
+        return false;
+    bzsFilesCreateFolderWorking = true;
+    var form_source = $(this).serializeArray();
+    var form_data = {};
+    for (var i = 0; i < form_source.length; i++)
+        form_data[form_source[i]['name']] = form_source[i]['value'];
+    form_data['action'] = 'new-folder';
+    form_data['source'] = $(this).data('uuid');
+    $.ajax({
+        method: 'POST',
+        url: '/files/operation',
+        data: JSON.stringify(form_data),
+        dataType: "json"
+    }).complete(function() { // As of jQuery 3, use complete(), otherwise always()
+        bzsReloadMainframeRefresh();
+        $('#dialog-input-string-container').modal('hide');
+        bzsFilesCreateFolderWorking = false;
+    });
+    return ;
+};
+var bzsFilesCreateFolder = function() {
+    bzsDialogInputStringLoad('Create new folder',
+        'New Folder',
+        '/files/operation',
+        '${cwd_uuid}',
+        bzsFilesCreateFolderAction
+    );
+    $('#dialog-input-string-container').modal('show');
+    return ;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 var bzsFilesMarkRenameWorking = false;
 var bzsFilesMarkRename = function(event) {
     event.preventDefault();
@@ -192,7 +278,6 @@ var bzsFilesMarkRename = function(event) {
     });
     return false;
 };
-$('#dialog-input-string-form').submit(bzsFilesMarkRename)
 
 var bzsFilesMarkCopy = function() {
     bzsFilesClipboard = []
@@ -267,4 +352,185 @@ var bzsFilesMarkPaste = function() {
     });
     return ;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+var bzsFilesUploadDisplay = $('#files-upload-display'),
+    $prog=$(null),
+    $faded_box=$('#faded-box'),
+    $progress_parent=$('#progress-parent');
+
+var bzsFilesUploadQueue = [],
+    bzsFilesUploadQueueIdx = 0,
+    bzsFilesUploadWorking = false,
+    bzsFilesUploadDragStatus = 0;
+
+var bzsFilesUploadEnqueue = function(file) {
+    bzsFilesUploadQueue.push(file);
+    // Creating table content
+    var element_1 = document.createElement('tr'),
+        element_2 = document.createElement('td'),
+        element_3 = document.createElement('td'),
+        element_4 = document.createElement('div'),
+        element_5 = document.createElement('div');
+    // Appending attributes.
+    element_5.className = 'progress-bar progress-bar-primary progress-bar-striped';
+    element_5.setAttribute('style', 'width:0%');
+    element_4.className = 'progress active';
+    element_4.appendChild(element_5);
+    element_3.appendChild(element_4);
+    element_2.textContent = file.name;
+    element_1.appendChild(element_2);
+    element_1.appendChild(element_3);
+    $('#files-upload-display').append(element_1);
+    // Request upload
+    if (!bzsFilesUploadWorking) {
+        $('#files-upload-placeholder').removeAttr('hidden');
+        bzsFilesUploadWork();
+    }
+    return ;
+}
+
+var bzsFilesUploadDragWorking = false;
+// This would only apply regionally to the frame area, not the navbars.
+$('#container-mainframe').off('dragenter')
+    .off('dragleave')
+    .off('dragover')
+    .off('drop')
+$('#container-mainframe')
+    // At cursor / dragging objects' entrance
+    .on('dragenter', function() {
+        bzsFilesUploadDragStatus++;
+        // Begin transition display.
+        if(bzsFilesUploadDragStatus === 1)
+            $('body').addClass('files-upload-transition')
+                .addClass('files-upload-dragging');
+        return ;
+    })
+    // At the leaving of objects
+    .on('dragleave', function() {
+        bzsFilesUploadDragStatus--;
+        // Terminate transition display and do nothing.
+        if(bzsFilesUploadDragStatus === 0) {
+            $('body').removeClass('files-upload-dragging');
+            setTimeout(function() {
+                $('body').removeClass('files-upload-transition');
+            }, 200);
+        }
+        return ;
+    })
+    // Just when things are hanging around
+    .on('dragover', function(event) {
+        event.preventDefault();
+        // Dragging things over does not trigger anything.
+        return ;
+    })
+    // The things are released hither
+    .on('drop',function(event) {
+        event.preventDefault();
+        if (bzsFilesUploadDragWorking)
+            return ;
+        bzsFilesUploadDragWorking = true;
+        // After release the transition ought to be dismissed.
+        // We send the several files to uploader queue.
+        for (var i = 0; i < event.originalEvent.dataTransfer.files.length; i++)
+            bzsFilesUploadEnqueue(event.originalEvent.dataTransfer.files[i]);
+        bzsFilesUploadDragStatus = 0;
+        $('body').removeClass('files-upload-dragging');
+        setTimeout(function() {
+            $('body').removeClass('files-upload-transition');
+        }, 200);
+        bzsFilesUploadDragWorking = false;
+        return ;
+    });
+
+// Uploading button...
+$('#files-upload-uploader-hidden').change(function() {
+    for (var i = 0; i < document.getElementById('files-upload-uploader-hidden').files.length; i++)
+        bzsFilesUploadEnqueue(document.getElementById('files-upload-uploader-hidden').files[i]);
+    return false;
+});
+
+var bzsFilesUploadWork = function() {
+    // Queue cleared up, attempting to reload.
+    if(!bzsFilesUploadQueue.length) {
+        bzsFilesUploadQueue = [];
+        bzsFilesUploadQueueIdx = 0;
+        setTimeout(function() {
+            bzsReloadMainframeWorking = false;
+            $('#files-upload-display').empty();
+            $('#files-upload-placeholder').attr('hidden', 'hidden');
+            bzsReloadMainframeRefresh();
+        }, 600);
+        return ;
+    }
+    bzsReloadMainframeWorking = true; // Prevent naughty boys corrupting the frame
+    var file = bzsFilesUploadQueue[0];
+    var work_target = $('#files-upload-display').children()[
+        bzsFilesUploadQueueIdx];
+
+    var progressCallback = function(event) {
+        var percentage = event.loaded * 100 / event.total;
+        work_target.children[1].children[0].children[0].setAttribute(
+            'style', 'width:' + percentage + '%');
+        work_target.children[1].children[0].children[0].
+            setAttribute('class', 'progress-bar progress-bar-primary progress-bar-striped');
+        return ;
+    }
+    var completeCallback = function(event) {
+        // Equivalent to array.pop_front();
+        bzsFilesUploadQueue.splice(0,1);
+        // Update searcher index.
+        bzsFilesUploadWorking = false;
+        bzsFilesUploadQueueIdx++;
+        // This updates its progress bar.
+        work_target.children[1].children[0].children[0].setAttribute(
+            'style', 'width:100%');
+        if(event.target.responseText === "bzs_upload_success")
+            work_target.children[1].children[0].children[0].
+                setAttribute('class', 'progress-bar progress-bar-success progress-bar-striped');
+        else
+            work_target.children[1].children[0].children[0].
+                setAttribute('class', 'progress-bar progress-bar-warning progress-bar-striped');
+        // And call on the next upload procedure.
+        bzsFilesUploadWork();
+        return ;
+    }
+    var failedCallback = function() {
+        // if(confirm('上传失败，是否重试？'))
+        //     upload_content();
+        // else
+        //     location.reload();
+        bzsFilesUploadQueueIdx++;
+        // Update progress bar, do not retry.
+        work_target.children[1].children[0].children[0].setAttribute(
+            'style', 'width:100%');
+        work_target.children[1].children[0].children[0].
+            setAttribute('class', 'progress-bar progress-bar-danger progress-bar-striped');
+        bzsFilesUploadWork();
+        return ;
+    }
+    var cancelCallback = function() {
+        bzsFilesUploadWorking = false;
+        bzsFilesUploadQueue = [];
+        bzsFilesUploadQueueIdx = 0;
+        $('#files-upload-display').empty();
+        $('#files-upload-placeholder').attr('hidden', 'hidden');
+        return ;
+    }
+    bzsFilesUploadWorking = true;
+    var xml_request = new XMLHttpRequest(),
+        form_data = new FormData();
+    form_data.append("upfile", file);
+    form_data.append("filename", file.name);
+    xml_request.upload.addEventListener("progress", progressCallback, false);
+    xml_request.addEventListener("load", completeCallback, false);
+    xml_request.addEventListener("error", failedCallback, false);
+    xml_request.addEventListener("abort", cancelCallback, false);
+    xml_request.open("POST", "/files/upload/" + "${cwd_uuid}" + "/" + file.name);
+    xml_request.send(file);
+    return ;
+}
+
 </script>

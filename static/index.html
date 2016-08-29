@@ -20,7 +20,7 @@
               folder instead of downloading all of them to reduce the load. -->
     <link rel="stylesheet" href="/static/dist/css/skins/_all-skins.min.css">
     <!-- ANIMATE.CSS animation styles -->
-    <link rel="stylesheet" href="/static/dist/css/animate.css">
+    <link rel="stylesheet" href="/static/plugins/animate/animate.css">
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -104,9 +104,9 @@
                         </ul>
                     </li>
                     <!-- Right control button. -->
-                    <li>
-                        <a href="#" data-href="/files">
-                            <span class="ion ion-folder"></span>
+                    <li id="navbar-back-button">
+                        <a href="#">
+                            <span class="ion ion-arrow-left-c" style="font-size:20px"></span>
                         </a>
                     </li>
                 </ul>
@@ -270,6 +270,23 @@
     <!-- Dynamically modified content wrapper. -->
     <div class="content-wrapper">
         <div id="container-mainframe" class="animated">
+            <section class="content-header">
+                <h1>
+                    The Void
+                    <small>(0);</small>
+                </h1>
+                <ol class="breadcrumb">
+                    <li class="active">void(0);</li>
+                </ol>
+            </section>
+            <section class="content">
+                <div class="callout callout-info lead">
+                    <h4>Knock knock</h4>
+                    <p>
+                    There's nothing here. Either the page is still loading or can you choose something on the left pane.
+                    </p>
+                </div>
+            </section>
         </div>
     </div>
     <!-- /.content-wrapper -->
@@ -293,13 +310,11 @@
             <input name="target" class="form-control" style="width: 100%; height: 40px; resize: none;" placeholder="Enter text" id="dialog-input-string-body"></input>
         </div>
         <div class="modal-footer">
-            <button type="submit" class="btn btn-info">
-                <span class="ion ion-checkmark-round" style="text-size:24px"></span>
-                Done
-            </button>
-            <button type="button" class="btn btn-danger" data-dismiss="modal">
-                <span class="ion ion-close" style="text-size:24px"></span>
+            <button type="button" class="btn btn-default pull-left" data-dismiss="modal">
                 Discard
+            </button>
+            <button type="submit" class="btn btn-primary">
+                Save Changes
             </button>
         </div>
     </form>
@@ -308,11 +323,12 @@
 
 <!-- jQuery 2.2.3 -->
 <script src="/static/plugins/jQuery/jquery-2.2.3.min.js"></script>
-<!-- <script src="/static/plugins/jQuery/jquery-3.1.0.min.js"></script> -->
+<!-- jQuery Mobile 1.4.5 -->
+<script src="/static/plugins/jQueryMobile/jquery.mobile-1.4.5.min.js"></script>
 <!-- Bootstrap 3.3.6 -->
 <script src="/static/bootstrap/js/bootstrap.min.js"></script>
 <!-- FastClick -->
-<script src="/static/plugins/fastclick/fastclick.js"></script>
+<script src="/static/plugins/fastclick/fastclick.min.js"></script>
 <!-- Sparkline -->
 <script src="/static/plugins/sparkline/jquery.sparkline.min.js"></script>
 <!-- jvectormap -->

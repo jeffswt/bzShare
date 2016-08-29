@@ -41,6 +41,7 @@ $(window).resize(bzsAdaptContentToSize);
 
 /*
  * AJAX seamless transitions
+ *  - bzsReloadMainframeCore(url, reverseDirection) // The heart of the following function(s)
  *  - bzsReloadMainframe() // triggered by buttons
  *  - bzsReloadMainframeSeamless(url) // No effects, triggered by scripts
  *  - bzsReloadMainframeRefresh() // No effects, reload the same page
@@ -48,20 +49,47 @@ $(window).resize(bzsAdaptContentToSize);
 var bzsReloadMainframeWorking = false;
 var bzsReloadMainframeLastAccess = '/files';
 
-var bzsReloadMainframe = function() {
+var bzsReloadMainframeCore = function(url, reverseDirection, noHistory) {
     var mainframe_body = $('#container-mainframe');
-    var opt_data = $(this).data('href');
     if (bzsReloadMainframeWorking)// ||
             // $(this).data('href') == bzsReloadMainframeLastAccess)
         return ;
     bzsReloadMainframeWorking = true;
-    bzsReloadMainframeLastAccess = opt_data
-    // alert(bzsReloadMainframeLastAccess);
-    mainframe_body.removeClass('fadeInRight').addClass('fadeOutLeft');
+    bzsReloadMainframeLastAccess = url;
+    // Add event to history
+    if (!noHistory) {
+        try {
+            bzsHistoryList.push(url);
+        } catch (exception) {
+            bzsHistoryList = [url];
+        }
+        if (!reverseDirection)
+            bzsHistoryAfterList = [];
+    }
+    // Starting to create animations and load
+    if (!reverseDirection)
+        mainframe_body.removeClass('fadeInLeft')
+            .removeClass('fadeInRight')
+            .removeClass('fadeOutRight')
+            .addClass('fadeOutLeft');
+    else
+        mainframe_body.removeClass('fadeInLeft')
+            .removeClass('fadeInRight')
+            .removeClass('fadeOutLeft')
+            .addClass('fadeOutRight');
     setTimeout(function() {
         try {
-            mainframe_body.load(opt_data, function() {
-                mainframe_body.removeClass('fadeOutLeft').addClass('fadeInRight');
+            mainframe_body.load(url, function() {
+                if (!reverseDirection)
+                    mainframe_body.removeClass('fadeOutLeft')
+                        .removeClass('fadeOutRight')
+                        .removeClass('fadeInLeft')
+                        .addClass('fadeInRight');
+                else
+                    mainframe_body.removeClass('fadeOutLeft')
+                        .removeClass('fadeOutRight')
+                        .removeClass('fadeInRight')
+                        .addClass('fadeInLeft');
                 $('[data-href]').click(bzsReloadMainframe);
                 bzsAdaptContentToSize();
                 setTimeout(function() {
@@ -75,6 +103,11 @@ var bzsReloadMainframe = function() {
     }, 800);
     return ;
 };
+
+var bzsReloadMainframe = function() {
+    var url = $(this).data('href');
+    bzsReloadMainframeCore(url, false, false);
+}
 $('[data-href]').click(bzsReloadMainframe);
 
 var bzsReloadMainframeSeamless = function(target) {
@@ -104,12 +137,75 @@ var bzsReloadMainframeRefresh = function() {
 bzsReloadMainframeRefresh();
 
 /*
- * Form actions
+ * History actions
  */
-var bzsDialogInputStringLoad = function(title, placeholder, target, uuid) {
+var bzsHistoryList = [bzsReloadMainframeLastAccess];
+var bzsHistoryAfterList = [];
+var bzsHistoryRollback = function() {
+    if (bzsReloadMainframeWorking)
+        return false;
+    var last_access = ''
+    try {
+        last_access = bzsHistoryList.pop();
+        if (last_access.length <= 0)
+            return ;
+        bzsHistoryAfterList.push(last_access)
+        last_access = bzsHistoryList.pop();
+        bzsHistoryList.push(last_access);
+        if (last_access.length <= 0)
+            return ;
+        bzsReloadMainframeCore(last_access, true, true);
+    } catch (exception) {
+        bzsHistoryList = [bzsReloadMainframeLastAccess]
+    }
+    return ;
+};
+var bzsHistoryRollfront = function() {
+    if (bzsReloadMainframeWorking)
+        return false;
+    var last_access = ''
+    try {
+        // bzsHistoryAfterList.reverse();
+        last_access = bzsHistoryAfterList.pop();
+        // bzsHistoryAfterList.reverse();
+        if (last_access.length <= 0)
+            return ;
+        bzsHistoryList.push(last_access);
+        bzsReloadMainframeCore(last_access, false, true);
+    } catch (exception) {
+        bzsHistoryList = [bzsReloadMainframeLastAccess]
+    }
+    return ;
+}
+$('#navbar-back-button').click(bzsHistoryRollback);
+// Touch-devices-only functions.
+$('#container-mainframe').on('swiperight', function() {
+    bzsHistoryRollback();
+    return ;
+});
+$('#container-mainframe').on('swipeleft', function() {
+    bzsHistoryRollfront();
+    return ;
+});
+
+/*
+ * Form actions
+ *  - bzsDialogInputStringLoad(title, placeholder, target, uuid): Reload the given
+ *    input dialog box with given datum
+ */
+var bzsDialogInputStringLoad = function(title, placeholder, target, uuid, callback) {
     document.getElementById('dialog-input-string-header').innerHTML = title;
     $('#dialog-input-string-body').attr('value', placeholder);
     $('#dialog-input-string-form').attr('action', target);
     $('#dialog-input-string-form').attr('data-uuid', uuid);
+    $('#dialog-input-string-form').submit(callback);
     return ;
 }
+
+/*
+ * Other various tweaks
+ */
+$(document).ready(function() {
+    // This is only a HOTFIX.
+    $('.ui-loader').remove();
+});
