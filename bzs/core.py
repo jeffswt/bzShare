@@ -10,7 +10,7 @@ import tornado.ioloop
 import tornado.web
 
 from bzs import files
-# from bzs import db
+from bzs import db
 
 from bzs import module_error404
 from bzs import module_files
