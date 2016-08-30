@@ -151,7 +151,6 @@ class FileStorageType:
         u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, master=self)
         # Done indexing, now proceeding to process content into SQL
         content = binascii.hexlify(content).decode('ascii')
-        # self.st_db.execute('INSERT INTO file_storage (uuid, size, count, hash, content) VALUES ("%s", %d, %d, "%s", E"\\\\x%s");' % (n_uuid, n_size, n_count, n_hash, content))
         self.st_db.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES ('%s', %d, %d, '%s', E'\\x%s');" % (n_uuid, n_size, n_count, n_hash, content))
         # Injecting file into main indexer
         self.st_uuid_idx[n_uuid] = u_fl
@@ -164,7 +163,8 @@ class FileStorageType:
         except Exception:
             return b''
         # Got file handle, now querying file data
-        content = self.st_db.execute("SELECT content FROM file_storage WHERE uuid = '%d';" % uuid_)
+        content = self.st_db.execute("SELECT content FROM file_storage WHERE uuid = '%s';" % uuid_)
+        print(content)
         return content
     pass
 
