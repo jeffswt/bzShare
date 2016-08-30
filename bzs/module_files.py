@@ -7,10 +7,11 @@ import re
 import time
 import tornado
 
-from bzs import files
 from bzs import const
-from bzs import users
+from bzs import db
+from bzs import files
 from bzs import preproc
+from bzs import users
 
 # TODO: Remove this!
 import os
@@ -28,6 +29,7 @@ class FilesListHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, target_path):
+        """/files/list/HEXED_BASE64_STRING_OF_PATH/"""
         # Another concurrency blob...
         future = tornado.concurrent.Future()
 
@@ -35,7 +37,7 @@ class FilesListHandler(tornado.web.RequestHandler):
             # Getting file template.
             file_temp = files.get_static_data('./static/files.html')
 
-            # Retrieving list target.
+            # Retrieving list operation target.
             try:
                 target_path = decode_hexed_b64_to_str(target_path)
             except:
@@ -43,7 +45,7 @@ class FilesListHandler(tornado.web.RequestHandler):
             if not target_path:
                 target_path = '/'
 
-            # Getting parental directorial list
+            # Getting hierarchical file path
             files_hierarchy = target_path.split('/')
             files_hierarchy_list = list()
             while '' in files_hierarchy:
@@ -61,21 +63,22 @@ class FilesListHandler(tornado.web.RequestHandler):
 
             # Getting current directory content
             files_attrib_list = list()
-            for file_name in os.listdir(target_path):
-                try: # In case of a permission error.
+            for f_handle in db.Filesystem.listdir(target_path):
+                try:
+                    file_name = f_handle['file-name']
                     actual_path = target_path + file_name
                     attrib = dict()
                     attrib['file-name'] = file_name
-                    attrib['allow-edit'] = True
-                    attrib['file-size'] = files.format_file_size(os.path.getsize(actual_path))
-                    attrib['owner'] = 'root'
-                    attrib['date-uploaded'] = time.ctime(os.path.getctime(actual_path))
-                    # Detecting whether is a folder
-                    if os.path.isdir(actual_path):
+                    attrib['file-size'] = f_handle['file-size']
+                    attrib['owner'] = f_handle['owner']
+                    attrib['date-uploaded'] = time.strftime(const.get_const('time-format'), time.localtime(f_handle['upload-time']))
+                    # Encoding MIME types
+                    if f_handle['is-dir']:
                         attrib['mime-type'] = 'directory/folder'
                     else:
                         attrib['mime-type'] = files.guess_mime_type(file_name)
-                    # And access links should differ between folders and files
+                    attrib['file-name'] = f_handle['file-name']
+                    # Encoding hyperlinks
                     if attrib['mime-type'] == 'directory/folder':
                         attrib['target-link'] = '/files/list/%s' % encode_str_to_hexed_b64(actual_path + '/')
                     else:
@@ -136,14 +139,17 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
             invoke_404()
             return
 
-        # File actually exists, sending data
-        try:
-            file_handle = open(file_path, 'rb')
-        except Exception:
-            invoke_404()
-            return
-        file_data = file_handle.read()
-        file_handle.close()
+        # Asynchronous web request...
+        file_block_size = 64 * 1024 # 64 KiB / Chunk
+        file_block = bytes()
+        file_data = None
+
+        future = tornado.concurrent.Future()
+        def inquire_data_async():
+            _tf_data = db.Filesystem.get_content(file_path)
+            future.set_result(_tf_data)
+        tornado.ioloop.IOLoop.instance().add_callback(inquire_data_async)
+        file_data = yield future
         file_stream = io.BytesIO(file_data)
 
         self.set_status(200, "OK")
@@ -151,10 +157,6 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'application/x-download')
         self.add_header('Content-Length', str(len(file_data)))
-
-        # Asynchronous web request...
-        file_block_size = 64 * 1024 # 64 KiB / Chunk
-        file_block = bytes()
 
         while file_stream.tell() < len(file_data):
             byte_pos = file_stream.tell()
@@ -219,17 +221,28 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             # Done assigning values, now attempting to perform operation
             if action == 'copy':
                 for source in sources:
-                    os.system('cp "D:%s" "D:%s"' % (source, target))
+                    # os.system('cp "D:%s" "D:%s"' % (source, target))
+                    print('copy', source, target)
+                    db.Filesystem.copy(source, target, new_owner='user-cp')
             elif action == 'move':
                 for source in sources:
-                    os.system('mv "D:%s" "D:%s"' % (source, target))
+                    # os.system('mv "D:%s" "D:%s"' % (source, target))
+                    print('move', source, target)
+                    db.Filesystem.move(source, target)
             elif action == 'delete':
                 for source in sources:
-                    os.system('rm "D:%s"' % source)
+                    # os.system('rm "D:%s"' % source)
+                    print('delete', source)
+                    db.Filesystem.remove(source)
             elif action == 'rename':
-                os.system('rename "D:%s" "%s"' % (sources, target))
+                # os.system('rename "D:%s" "%s"' % (sources, target))
+                print('rename', sources, target)
+                db.Filesystem.rename(sources, target)
+                print(db.Filesystem.listdir('/'))
             elif action == 'new-folder':
-                os.system('mkdir "D:%s%s"' % (sources, target))
+                # os.system('mkdir "D:%s%s"' % (sources, target))
+                print('mkdir', sources)
+                db.Filesystem.mkdir(sources, target, 'user-nf')
             future.set_result('')
         tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async)
         file_temp = yield future
@@ -259,26 +272,8 @@ class FilesUploadHandler(tornado.web.RequestHandler):
         def save_file_async(alter_ego, target_path, file_name):
             upload_data = alter_ego.request.body
             target_path = decode_hexed_b64_to_str(target_path)
-            # Attempting to write to file... otherwise might try to rename until
-            # File does not exist.
-            def get_non_duplicate_path(file_path):
-                if not os.path.exists('D:' + file_path):
-                    return file_path
-                duplicate = 1
-                while duplicate < 101:
-                    new_path = re.sub(r'\.(.*?)$', ' (%d).\\1' % duplicate, file_path)
-                    if not os.path.exists('D:' + new_path):
-                        return new_path
-                    duplicate = duplicate + 1
-                return ''
-            file_path = get_non_duplicate_path(target_path + file_name)
-            if not file_path:
-                future.set_result('bzs_upload_failure')
-                return
             # Committing changes to database
-            file_stream = open(file_path, 'wb')
-            file_stream.write(upload_data)
-            file_stream.close()
+            db.Filesystem.mkfile(target_path, file_name, 'user', upload_data)
             # Final return
             future.set_result('bzs_upload_success')
         tornado.ioloop.IOLoop.instance().add_callback(save_file_async,

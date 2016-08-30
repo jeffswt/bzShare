@@ -9,6 +9,7 @@ universal_options_list = {
     'db-host-port': '8079',
     'license': 'GNU GPL v3',
     'server-name': 'Apache/2.4.1 (Linux 2.6.32)',
+    'time-format': '%a %Y/%m/%d, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
     'version': 'indev'
 }
