@@ -4,6 +4,8 @@ import copy
 import hashlib
 import io
 import psycopg2
+import psycopg2.extensions
+import psycopg2.extras
 import re
 import time
 import uuid
@@ -18,10 +20,10 @@ def get_current_time():
 def get_new_uuid(uuid_, uuid_list=None):
     """Creates a new UUID that is not in 'uuid_list' if given."""
     if not uuid_:
-        uuid_ = str(uuid.uuid4())
+        uuid_ = uuid.uuid4()
         if type(uuid_list) in [set, dict]:
             while uuid_ in uuid_list:
-                uuid_ = str(uuid.uuid4())
+                uuid_ = uuid.uuid4()
     return uuid_
 
 ################################################################################
@@ -35,6 +37,7 @@ class DatabaseType:
             host=const.get_const('db-host-addr'),
             port=const.get_const('db-host-port')
         )
+        psycopg2.extras.register_uuid()
         self.init_db(False)
         return
 
@@ -342,7 +345,7 @@ class FilesystemType:
                     s_upload_time = float(fil_idx[3])
                 except:
                     s_upload_time = get_current_time()
-                s_f_uuid = fil_idx[4]
+                s_f_uuid = uuid.UUID(fil_idx[4])
                 if s_f_uuid not in FileStorage.st_uuid_idx:
                     continue
                 # Pushing...
@@ -414,11 +417,11 @@ class FilesystemType:
                 n_sub_folders.append(i_sub.uuid)
             else:
                 n_sub_files.append([
-                    i_sub.uuid,
-                    i_sub.file_name,
+                    str(i_sub.uuid),
+                    str(i_sub.file_name),
                     i_sub.owner,
                     "%f" % i_sub.upload_time,
-                    i_sub.f_uuid
+                    str(i_sub.f_uuid)
                 ])
         # Formatting string
         return (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files)

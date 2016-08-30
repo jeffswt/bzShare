@@ -9,8 +9,9 @@ import tornado.gen
 import tornado.ioloop
 import tornado.web
 
-from bzs import files
+from bzs import const
 from bzs import db
+from bzs import files
 
 from bzs import module_error404
 from bzs import module_files
@@ -35,7 +36,7 @@ def main():
         (r'^/files/upload/(.*)/(.*)$', module_files.FilesUploadHandler),
         (r'^/files/operation/?', module_files.FilesOperationHandler),
         (r'.*', module_error404.Error404Handler)
-    ]).listen(WEB_PORT)
+    ]).listen(const.get_const('bind-port'))
     # Boot I/O thread for asynchronous purposes
     global ioloop
     ioloop = tornado.ioloop.IOLoop.instance()

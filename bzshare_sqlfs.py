@@ -1,4 +1,7 @@
 
+import urllib
+import urllib.parse
+
 print('')
 print('SQLFS Interactive Console')
 print('=' * 60)
