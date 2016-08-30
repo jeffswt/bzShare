@@ -1,4 +1,5 @@
 tornado
 mako
+psycopg2
 
 bbcode

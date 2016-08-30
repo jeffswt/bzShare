@@ -264,6 +264,8 @@ class FilesUploadHandler(tornado.web.RequestHandler):
 
         def save_file_async(alter_ego, target_path, file_name):
             upload_data = alter_ego.request.body
+            # Crucial, to release data.
+            alter_ego.request.body = None
             target_path = decode_hexed_b64_to_str(target_path)
             # Committing changes to database
             db.Filesystem.mkfile(target_path, file_name, 'user', upload_data)

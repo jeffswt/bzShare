@@ -2,6 +2,7 @@
 import binascii
 import copy
 import hashlib
+import io
 import psycopg2
 import re
 import time
@@ -36,7 +37,7 @@ class DatabaseType:
         )
         return
 
-    def execute(self, command, args=None):
+    def execute(self, command, args=None, fetch_func='all'):
         with psycopg2.connect(**self.connect_params) as l_db:
             with l_db.cursor() as l_cur:
                 try:
@@ -44,10 +45,18 @@ class DatabaseType:
                 except psycopg2.ProgrammingError as err:
                     print('Exception occured in PostgreSQL while executing the command:\n    %s: %s\n    %s\n' % (type(err), err, command))
                 try:
-                    final_arr = l_cur.fetchall()
+                    if fetch_func == 'one':
+                        final_arr = l_cur.fetchone()
+                    elif fetch_func == 'all':
+                        final_arr = l_cur.fetchall()
+                    else:
+                        final_arr = None
                 except Exception:
                     final_arr = None
         return final_arr
+
+    def execute_raw(self):
+        return psycopg2.connect(**self.connect_params)
 
     def init_db(self):
         # Purge database of obsolete tables
@@ -94,7 +103,7 @@ class DatabaseType:
                 size    BIGINT,
                 count   BIGINT,
                 hash    TEXT,
-                content BYTEA
+                content OID
             );
         """)
         return
@@ -147,8 +156,30 @@ class FileStorageType:
         n_count = 1
         n_hash = self.hash_algo(content).hexdigest()
         u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, master=self)
-        # Done indexing, now proceeding to process content into SQL
-        self.st_db.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, %s);", (n_uuid, n_size, n_count, n_hash, content))
+        # Done indexing, now proceeding to process content into SQL (RAW)
+        with self.st_db.execute_raw() as db:
+            with db.cursor() as cur:
+                # Insert metadata only, for memory conservation
+                cur.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, lo_from_bytea(0, E'\\x'));", (n_uuid, n_size, n_count, n_hash))
+                db.commit()
+                # Select the last object we just inserted
+                cur.execute("SELECT content FROM file_storage WHERE uuid = %s;", (n_uuid,))
+                n_oid = cur.fetchone()[0] # Retrieved large object descriptor
+                db.commit()
+                # Making psycopg2.extensions.lobject (Large Object)
+                n_lobj = db.lobject(n_oid, 'wb')
+                # Writing changes to database object
+                f_stream = io.BytesIO(content)
+                chunk_size = 512 * 1024 # Chunk size of 64 KB
+                # Continuously writing to target
+                while True:
+                    chunk = f_stream.read(chunk_size)
+                    n_lobj.write(chunk)
+                    if len(chunk) < chunk_size:
+                        break
+                n_lobj.close()
+                f_stream.close()
+                db.commit()
         # Injecting file into main indexer
         self.st_uuid_idx[n_uuid] = u_fl
         self.st_hash_idx[n_hash] = u_fl
@@ -160,8 +191,30 @@ class FileStorageType:
         except Exception:
             return b''
         # Got file handle, now querying file data
-        content = self.st_db.execute("SELECT content FROM file_storage WHERE uuid = %s;", (uuid_,))
-        return content[0][0]
+        content = b'' # Empty bytes, ready to write
+        with self.st_db.execute_raw() as db:
+            with db.cursor() as cur:
+                # Insert metadata only, for memory conservation
+                cur.execute("SELECT content FROM file_storage WHERE uuid = %s", (u_fl.uuid,))
+                db.commit()
+                try:
+                    f_oid = cur.fetchone()[0] # Retrieved large object descriptor
+                except: # Not in database
+                    return b''
+                db.commit()
+                # Making psycopg2.extensions.lobject (Large Object)
+                f_lobj = db.lobject(f_oid, 'rb')
+                # Writing query results to result
+                chunk_size = 2 * 1024 * 1024 # Chunk size of 512 KB
+                # Continuously reading from target
+                while True:
+                    chunk = f_lobj.read(chunk_size)
+                    content += chunk
+                    if len(chunk) < chunk_size:
+                        break
+                f_lobj.close()
+                db.commit()
+        return content
     pass
 
 FileStorage = FileStorageType()
@@ -250,6 +303,8 @@ class FilesystemType:
                 except:
                     s_upload_time = get_current_time()
                 s_f_uuid = fil_idx[4]
+                if s_f_uuid not in FileStorage.st_uuid_idx:
+                    continue
                 # Pushing...
                 s_file = self.fsNode(False, s_file_name, s_owner, s_uuid, s_upload_time, f_uuid=s_f_uuid, master=self)
                 n_sub_files.add(s_file)
@@ -530,7 +585,6 @@ class FilesystemType:
         return dirs
 
     def get_content(self, item):
-        # TODO:
         """Gets binary content of the object (must be file) and returns the
         actual content in bytes."""
         if type(item) == str:
@@ -700,7 +754,9 @@ class FilesystemType:
             chown src usr  - Change ownership recursively of 'src' to 'usr'.
             rename src nam - Rename file / folder 'src' to 'nam'.
             mkdir name     - Make directory of 'name' under this directory.
-            mkfile name    - Make empty file of 'name' under this directory.
+            mkfile name dt - Make empty file of 'name' under this directory. If
+                             'dt' is specified, then its content would not be
+                             empty instead of the specified data.
             rm name        - Remove (recursively) object of 'name' under this
                              directory.
             cp src dest    - Copy object 'src' to under 'dest' as destination.
@@ -757,7 +813,10 @@ class FilesystemType:
             elif op == 'mkdir':
                 self.mkdir(cwd, cmd[1], cuser)
             elif op == 'mkfile':
-                self.mkfile(cwd, cmd[1], cuser, b'')
+                content = b''
+                if len(cmd) >= 3:
+                    content = cmd[2].encode('utf-8')
+                self.mkfile(cwd, cmd[1], cuser, content)
             elif op == 'rm':
                 self.remove(self.locate(cmd[1], parent=cwd))
             elif op == 'cp':
