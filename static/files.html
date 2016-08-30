@@ -218,20 +218,19 @@ bzsFilesMarkResetButtons();
 ////////////////////////////////////////////////////////////////////////////////
 
 var bzsFilesCreateFolderWorking = false;
-var bzsFilesCreateFolderAction = function(event) {
-    event.preventDefault();
+var bzsFilesCreateFolderAction = function(action, data_uuid, form_content) {
     if (bzsFilesCreateFolderWorking)
         return false;
     bzsFilesCreateFolderWorking = true;
-    var form_source = $(this).serializeArray();
+    var form_source = form_content;
     var form_data = {};
     for (var i = 0; i < form_source.length; i++)
         form_data[form_source[i]['name']] = form_source[i]['value'];
     form_data['action'] = 'new-folder';
-    form_data['source'] = $(this).data('uuid');
+    form_data['source'] = data_uuid;
     $.ajax({
         method: 'POST',
-        url: '/files/operation',
+        url: action,
         data: JSON.stringify(form_data),
         dataType: "json"
     }).complete(function() { // As of jQuery 3, use complete(), otherwise always()
@@ -255,20 +254,19 @@ var bzsFilesCreateFolder = function() {
 ////////////////////////////////////////////////////////////////////////////////
 
 var bzsFilesMarkRenameWorking = false;
-var bzsFilesMarkRename = function(event) {
-    event.preventDefault();
+var bzsFilesMarkRename = function(action, data_uuid, form_content) {
     if (bzsFilesMarkRenameWorking)
         return false;
     bzsFilesMarkRenameWorking = true;
-    var form_source = $(this).serializeArray();
+    var form_source = form_content;
     var form_data = {};
     for (var i = 0; i < form_source.length; i++)
         form_data[form_source[i]['name']] = form_source[i]['value'];
     form_data['action'] = 'rename';
-    form_data['source'] = $(this).data('uuid');
+    form_data['source'] = data_uuid;
     $.ajax({
         method: 'POST',
-        url: '/files/operation',
+        url: action,
         data: JSON.stringify(form_data),
         dataType: "json"
     }).complete(function() { // As of jQuery 3, use complete(), otherwise always()
@@ -394,11 +392,12 @@ var bzsFilesUploadEnqueue = function(file) {
 
 var bzsFilesUploadDragWorking = false;
 // This would only apply regionally to the frame area, not the navbars.
-$('#container-mainframe').off('dragenter')
+var bzsFilesUploadDragTarget = $('html');
+bzsFilesUploadDragTarget.off('dragenter')
     .off('dragleave')
     .off('dragover')
-    .off('drop')
-$('#container-mainframe')
+    .off('drop');
+bzsFilesUploadDragTarget
     // At cursor / dragging objects' entrance
     .on('dragenter', function() {
         bzsFilesUploadDragStatus++;

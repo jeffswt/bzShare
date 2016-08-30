@@ -193,13 +193,29 @@ $('#container-mainframe').on('swipeleft', function() {
  *  - bzsDialogInputStringLoad(title, placeholder, target, uuid): Reload the given
  *    input dialog box with given datum
  */
-var bzsDialogInputStringLoad = function(title, placeholder, target, uuid, callback) {
+var bzsDialogInputStringLoadCallback_Action;
+var bzsDialogInputStringLoadCallback_DataUuid;
+var bzsDialogInputStringLoadCallback_Callback;
+var bzsDialogInputStringLoadCallbackFunc = function(event) {
+    event.preventDefault();
+    bzsDialogInputStringLoadCallback_Callback(
+        bzsDialogInputStringLoadCallback_Action,
+        bzsDialogInputStringLoadCallback_DataUuid,
+        $(this).serializeArray()
+    );
+    return false;
+}
+var bzsDialogInputStringLoad = function(title, placeholder, action, uuid, callback) {
     document.getElementById('dialog-input-string-header').innerHTML = title;
     $('#dialog-input-string-body').attr('value', placeholder);
-    $('#dialog-input-string-form').attr('action', target);
+    $('#dialog-input-string-form').attr('action', action);
     $('#dialog-input-string-form').attr('data-uuid', uuid);
-    $('#dialog-input-string-form').submit(callback);
-    return ;
+    $('#dialog-input-string-form').off('submit');
+    $('#dialog-input-string-form').submit(bzsDialogInputStringLoadCallbackFunc);
+    bzsDialogInputStringLoadCallback_Action = action;
+    bzsDialogInputStringLoadCallback_DataUuid = uuid;
+    bzsDialogInputStringLoadCallback_Callback = callback;
+    return true;
 }
 
 /*
