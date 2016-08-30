@@ -8,10 +8,10 @@ universal_options_list = {
     'db-host-addr': '127.0.0.1',
     'db-host-port': '8079',
     'license': 'GNU GPL v3',
-    'server-name': 'Apache/2.4.1 (Linux 2.6.32)',
+    'server-name': 'Tornado/4.4',
     'time-format': '%a %Y/%m/%d, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
-    'version': 'indev'
+    'version': 'r0.17'
 }
 
 def get_const(_):
