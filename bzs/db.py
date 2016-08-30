@@ -163,6 +163,14 @@ class FileStorageType:
         n_size = len(content)
         n_count = 1
         n_hash = self.hash_algo(content).hexdigest()
+        # Checking hash of the file.
+        if n_hash in self.st_hash_idx:
+            old_fl = self.st_hash_idx[n_hash]
+            old_fl.count += 1
+            self.st_db.execute("UPDATE file_storage SET count = %s WHERE uuid = %s;", (old_fl.count, old_fl.uuid))
+            # We shall ignore the (1/2)**64 possibility of collisions...
+            return old_fl.uuid
+        # This is indeed a unique file...
         u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, master=self)
         # Done indexing, now proceeding to process content into SQL (RAW)
         with self.st_db.execute_raw() as db:
@@ -192,6 +200,30 @@ class FileStorageType:
         self.st_uuid_idx[n_uuid] = u_fl
         self.st_hash_idx[n_hash] = u_fl
         return n_uuid
+
+    def remove_unique_file(self, uuid_):
+        """Removes a unique file, and if its appearances drop below 1 ( <=0 ),
+        remove the actual coincidence of this file and its content."""
+        if uuid_ not in self.st_uuid_idx:
+            return True
+        s_fl = self.st_uuid_idx[uuid_]
+        s_fl.count -= 1
+        self.st_db.execute("UPDATE file_storage SET count = %s WHERE uuid = %s;", (s_fl.count, s_fl.uuid))
+        # Checking coincidence
+        if s_fl.count >= 1:
+            return True
+        # Removing from filesystem
+        del self.st_uuid_idx[s_fl.uuid]
+        del self.st_hash_idx[s_fl.hash]
+        # Removing from SQLDB
+        s_arr = self.st_db.execute("SELECT content FROM file_storage WHERE uuid = %s;", (s_fl.uuid,), fetch_func='one')
+        try:
+            s_oid = s_arr[0]
+        except:
+            pass
+        self.st_db.execute("SELECT lo_unlink(%s);", (s_oid,))
+        self.st_db.execute("DELETE FROM file_storage WHERE uuid = %s;", (s_fl.uuid,))
+        return True
 
     def get_content(self, uuid_):
         try:
@@ -580,14 +612,14 @@ class FilesystemType:
         dirs = list()
         for item in path.sub_items:
             attrib = dict()
-            # try:
-            attrib['file-name'] = item.file_name
-            attrib['file-size'] = 0 if item.is_dir else FileStorage.st_uuid_idx[item.f_uuid].size
-            attrib['is-dir'] = item.is_dir
-            attrib['owner'] = item.owner
-            attrib['upload-time'] = item.upload_time
-            # except:
-            #     continue
+            try:
+                attrib['file-name'] = item.file_name
+                attrib['file-size'] = 0 if item.is_dir else FileStorage.st_uuid_idx[item.f_uuid].size
+                attrib['is-dir'] = item.is_dir
+                attrib['owner'] = item.owner
+                attrib['upload-time'] = item.upload_time
+            except:
+                continue
             dirs.append(attrib)
         # Give the results to downstream
         return dirs
@@ -690,6 +722,9 @@ class FilesystemType:
         del self.fs_uuid_idx[item.uuid]
         # Delete itself from SQL database.
         self.fs_db.execute("DELETE FROM file_system WHERE uuid = %s;", (item.uuid,))
+        # Also delete occurence if is file.
+        if not item.is_dir:
+            FileStorage.remove_unique_file(item.f_uuid)
         return
 
     def remove(self, path):
