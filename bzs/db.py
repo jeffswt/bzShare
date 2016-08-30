@@ -350,7 +350,7 @@ class FilesystemType:
         # Uploading / committing data
         if not self.fs_db.execute("SELECT uuid FROM file_system WHERE uuid = %s;", (n_uuid,)):
             return False # You already stated this is an updating operation!
-        self.fs_db.execute("UPDATE file_system SET file_name = %s, owner = %s, upload_time = %s, sub_folders = %s WHERE uuid = %s;", (n_file_name, n_owner, n_upload_time, n_sub_folders, n_uuid))
+        self.fs_db.execute("UPDATE file_system SET file_name = %s, owner = %s, upload_time = %s, sub_folders = %s, sub_files = %s WHERE uuid = %s;", (n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files, n_uuid))
         return True
 
     def _insert_in_db(self, item):
@@ -369,7 +369,7 @@ class FilesystemType:
         return
 
     def make_root(self):
-        item = self.fsNode(True, '', 'System', master=self)
+        item = self.fsNode(True, '', 'system', master=self)
         del item.sub_files
         del item.sub_folders
         item.sub_items = set()
@@ -705,7 +705,7 @@ class FilesystemType:
                              directory.
             cp src dest    - Copy object 'src' to under 'dest' as destination.
             mv src dest    - Move object 'src' to under 'dest' as destination.
-            q              - Exit shell.
+            exit           - Exit shell.
 
         This shell should not be used in production as is not safe."""
         cwd = self.fs_root
@@ -766,7 +766,7 @@ class FilesystemType:
             elif op == 'mv':
                 src = self.locate(cmd[1], parent=cwd)
                 self.move(src, cmd[2])
-            elif op == 'q':
+            elif op == 'exit':
                 break
             else:
                 print('Unknown command "%s".' % op)
