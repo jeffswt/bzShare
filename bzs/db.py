@@ -18,10 +18,10 @@ def get_current_time():
 def get_new_uuid(uuid_, uuid_list=None):
     """Creates a new UUID that is not in 'uuid_list' if given."""
     if not uuid_:
-        uuid_ = uuid.uuid4().hex
+        uuid_ = str(uuid.uuid4())
         if type(uuid_list) in [set, dict]:
             while uuid_ in uuid_list:
-                uuid_ = uuid.uuid4().hex
+                uuid_ = str(uuid.uuid4())
     return uuid_
 
 ################################################################################
@@ -35,6 +35,7 @@ class DatabaseType:
             host=const.get_const('db-host-addr'),
             port=const.get_const('db-host-port')
         )
+        self.init_db(False)
         return
 
     def execute(self, command, args=None, fetch_func='all'):
@@ -58,7 +59,11 @@ class DatabaseType:
     def execute_raw(self):
         return psycopg2.connect(**self.connect_params)
 
-    def init_db(self):
+    def init_db(self, force=True):
+        # If database already initialized, and not forced to init, then ignore
+        if not force and self.execute("SELECT data FROM core WHERE index = %s;", ('db_initialized',)):
+            return True
+        print('Initializing PostgreSQL database.')
         # Purge database of obsolete tables
         self.execute("""
             DROP TABLE core;
@@ -73,6 +78,7 @@ class DatabaseType:
             DROP TABLE file_storage;
         """)
         # Creating new tables in order to function
+        # TIMESTAMPs has lower precision than DOUBLE, so we are using DOUBLE PRECISION instead.
         self.execute("""
             CREATE TABLE core (
                 index   TEXT,
@@ -81,9 +87,9 @@ class DatabaseType:
             CREATE TABLE users (
                 handle          TEXT,
                 password        TEXT,
-                usergroups      TEXT,
-                ip_address      TEXT[],
-                events          TEXT[],
+                usergroups      TEXT[],
+                ip_address      INET[],
+                events          BYTEA[],
                 usr_name        TEXT,
                 usr_description TEXT,
                 usr_email       TEXT,
@@ -91,22 +97,24 @@ class DatabaseType:
                 usr_friends     TEXT[]
             );
             CREATE TABLE file_system(
-                uuid        TEXT,
+                uuid        UUID,
                 file_name   TEXT,
                 owner       TEXT,
                 upload_time DOUBLE PRECISION,
-                sub_folders TEXT[],
+                sub_folders UUID[],
                 sub_files   TEXT[][]
             );
             CREATE TABLE file_storage (
-                uuid    TEXT,
+                uuid    UUID,
                 size    BIGINT,
                 count   BIGINT,
                 hash    TEXT,
                 content OID
             );
         """)
-        return
+        # Marking this database as initialized
+        self.execute("INSERT INTO core (index, data) VALUES ('db_initialized', %s)", (b'\x80\x03\x88\x2E',))
+        return True
     pass
 
 Database = DatabaseType()
