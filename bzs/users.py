@@ -11,7 +11,6 @@ def gen_cookie():
     return cookie
 
 class User:
-
     def __init__(self):
         # User handle, composed only of non-capital letters, numbers and underline,
         # While not exceeding the limit of 32-byte length
@@ -84,7 +83,6 @@ users_cookies = dict() # string -> string
 usergroups = set() # string
 
 
-# import os
 def load_users():
 #     # Usergroups initialization.
 #     usergroups = {'Guests', 'Users', 'Administrators'}

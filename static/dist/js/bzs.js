@@ -47,7 +47,7 @@ $(window).resize(bzsAdaptContentToSize);
  *  - bzsReloadMainframeRefresh() // No effects, reload the same page
  */
 var bzsReloadMainframeWorking = false;
-var bzsReloadMainframeLastAccess = '/files';
+var bzsReloadMainframeLastAccess = '/home';
 
 var bzsReloadMainframeCore = function(url, reverseDirection, noHistory) {
     var mainframe_body = $('#container-mainframe');

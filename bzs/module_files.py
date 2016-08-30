@@ -261,18 +261,20 @@ class FilesUploadHandler(tornado.web.RequestHandler):
         """/files/upload/HEXED_BASE64_STRING_OF_PATH_OF_PARENT/ACTUAL_FILENAME"""
         # Another concurrency blob...
         future = tornado.concurrent.Future()
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
 
-        def save_file_async(alter_ego, target_path, file_name):
+        def save_file_async(alter_ego, target_path, file_name, working_user):
             upload_data = alter_ego.request.body
             # Crucial, to release data.
             alter_ego.request.body = None
             target_path = decode_hexed_b64_to_str(target_path)
             # Committing changes to database
-            db.Filesystem.mkfile(target_path, file_name, 'user', upload_data)
+            db.Filesystem.mkfile(target_path, file_name, working_user.username, upload_data)
             # Final return
             future.set_result('bzs_upload_success')
         tornado.ioloop.IOLoop.instance().add_callback(save_file_async,
-            self, target_path, file_name)
+            self, target_path, file_name, working_user)
 
         response_temp = yield future
         self.set_status(200, "OK")
