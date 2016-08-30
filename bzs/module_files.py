@@ -13,9 +13,6 @@ from bzs import files
 from bzs import preproc
 from bzs import users
 
-# TODO: Remove this!
-import os
-
 def encode_str_to_hexed_b64(data):
     return binascii.b2a_hex(base64.b64encode(data.encode('utf-8'))).decode('utf-8')
 def decode_hexed_b64_to_str(data):
@@ -122,6 +119,7 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, file_path, file_name):
+        """/files/download/HEXED_BASE64_STRING_OF_PATH/ACTUAL_FILENAME"""
         # Something that I do not wish to write too many times..
         def invoke_404():
             self.set_status(404, "Not Found")
@@ -192,6 +190,7 @@ class FilesOperationHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def post(self):
+        """/files/operation/"""
         # Another concurrency blob...
         future = tornado.concurrent.Future()
 
@@ -221,27 +220,16 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             # Done assigning values, now attempting to perform operation
             if action == 'copy':
                 for source in sources:
-                    # os.system('cp "D:%s" "D:%s"' % (source, target))
-                    print('copy', source, target)
                     db.Filesystem.copy(source, target, new_owner='user-cp')
             elif action == 'move':
                 for source in sources:
-                    # os.system('mv "D:%s" "D:%s"' % (source, target))
-                    print('move', source, target)
                     db.Filesystem.move(source, target)
             elif action == 'delete':
                 for source in sources:
-                    # os.system('rm "D:%s"' % source)
-                    print('delete', source)
                     db.Filesystem.remove(source)
             elif action == 'rename':
-                # os.system('rename "D:%s" "%s"' % (sources, target))
-                print('rename', sources, target)
                 db.Filesystem.rename(sources, target)
-                print(db.Filesystem.listdir('/'))
             elif action == 'new-folder':
-                # os.system('mkdir "D:%s%s"' % (sources, target))
-                print('mkdir', sources)
                 db.Filesystem.mkdir(sources, target, 'user-nf')
             future.set_result('')
         tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async)
@@ -266,6 +254,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def post(self, target_path, file_name):
+        """/files/upload/HEXED_BASE64_STRING_OF_PATH_OF_PARENT/ACTUAL_FILENAME"""
         # Another concurrency blob...
         future = tornado.concurrent.Future()
 

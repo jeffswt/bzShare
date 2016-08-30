@@ -35,20 +35,19 @@ class DatabaseType:
             host=const.get_const('db-host-addr'),
             port=const.get_const('db-host-port')
         )
-        self._db = psycopg2.connect(**self.connect_params)
-        self._cur = None
         return
 
-    def execute(self, command, **args):
-        self._cur = self._db.cursor()
-        try:
-            self._cur.execute(command, **args)
-            final_arr = self._cur.fetchall()
-        except psycopg2.ProgrammingError:
-            # We'll take this as granted... though risky.
-            final_arr = None
-        self._db.commit()
-        self._cur.close()
+    def execute(self, command, args=None):
+        with psycopg2.connect(**self.connect_params) as l_db:
+            with l_db.cursor() as l_cur:
+                try:
+                    l_cur.execute(command, args)
+                except psycopg2.ProgrammingError as err:
+                    print('Exception occured in PostgreSQL while executing the command:\n    %s: %s\n    %s\n' % (type(err), err, command))
+                try:
+                    final_arr = l_cur.fetchall()
+                except Exception:
+                    final_arr = None
         return final_arr
 
     def init_db(self):
@@ -150,8 +149,7 @@ class FileStorageType:
         n_hash = self.hash_algo(content).hexdigest()
         u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, master=self)
         # Done indexing, now proceeding to process content into SQL
-        content = binascii.hexlify(content).decode('ascii')
-        self.st_db.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES ('%s', %d, %d, '%s', E'\\x%s');" % (n_uuid, n_size, n_count, n_hash, content))
+        self.st_db.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, %s);", (n_uuid, n_size, n_count, n_hash, content))
         # Injecting file into main indexer
         self.st_uuid_idx[n_uuid] = u_fl
         self.st_hash_idx[n_hash] = u_fl
@@ -163,9 +161,8 @@ class FileStorageType:
         except Exception:
             return b''
         # Got file handle, now querying file data
-        content = self.st_db.execute("SELECT content FROM file_storage WHERE uuid = '%s';" % uuid_)
-        print(content)
-        return content
+        content = self.st_db.execute("SELECT content FROM file_storage WHERE uuid = %s;", (uuid_,))
+        return content[0][0]
     pass
 
 FileStorage = FileStorageType()
@@ -319,7 +316,7 @@ class FilesystemType:
         self.fs_root = item
         self.fs_uuid_idx[item.uuid] = item
         # Inserting to SQL.
-        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES ('%s', '%s', '%s', %f, '{}', '{}');" % (item.uuid, item.file_name, item.owner, item.upload_time))
+        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (item.uuid, item.file_name, item.owner, item.upload_time, [], []))
         return
 
     def locate(self, path, parent=None):
@@ -358,20 +355,17 @@ class FilesystemType:
         n_sub_files = list()
         for i_sub in item.sub_items:
             if i_sub.is_dir:
-                n_sub_folders.append("\"%s\"" % i_sub.uuid)
+                n_sub_folders.append(i_sub.uuid)
             else:
-                s_attr = "{%s, %s, %s, %s, %s}" % (
-                    "\"%s\"" % i_sub.uuid,
-                    "\"%s\"" % i_sub.file_name,
-                    "\"%s\"" % i_sub.owner,
-                    "\"%f\"" % i_sub.upload_time,
-                    "\"%s\"" % i_sub.f_uuid
-                )
-                n_sub_files.append(s_attr)
+                n_sub_files.append([
+                    i_sub.uuid,
+                    i_sub.file_name,
+                    i_sub.owner,
+                    "%f" % i_sub.upload_time,
+                    i_sub.f_uuid
+                ])
         # Formatting string
-        n_sub_folders_str = "'{" + ", ".join(i for i in n_sub_folders) + "}'"
-        n_sub_files_str = "'{" + ", ".join(i for i in n_sub_files) + "}'"
-        return (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders_str, n_sub_files_str)
+        return (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files)
 
     def _update_in_db(self, item):
         # This applies to items in the
@@ -386,19 +380,18 @@ class FilesystemType:
             if not item.is_dir:
                 return False # I should raise, by a matter of fact
         # Collecting data
-        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders_str, n_sub_files_str = self._sqlify_fsnode(item)
+        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files = self._sqlify_fsnode(item)
         # Uploading / committing data
-        command = "UPDATE file_system SET file_name = '%s', owner = '%s', upload_time = %f, sub_folders = %s, sub_files = %s WHERE uuid = '%s';" % (n_file_name, n_owner, n_upload_time, n_sub_folders_str, n_sub_files_str, n_uuid)
-        self.fs_db.execute(command)
+        self.fs_db.execute("UPDATE file_system SET file_name = %s, owner = %s, upload_time = %s, sub_folders = %s WHERE uuid = %s;", (n_file_name, n_owner, n_upload_time, n_sub_folders, n_uuid))
         return True
 
     def _insert_in_db(self, item):
         """Create filesystem record of directory 'item' inside database."""
         if not item.is_dir:
             return False # Must be directory...
-        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders_str, n_sub_files_str = self._sqlify_fsnode(item)
+        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files = self._sqlify_fsnode(item)
         # Uploading / committing data
-        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES ('%s', '%s', '%s', %f, %s, %s);" % (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders_str, n_sub_files_str))
+        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files))
         return
 
     def get_content(self, item):
@@ -422,7 +415,7 @@ class FilesystemType:
         # Delete itself from filesystem.
         del self.fs_uuid_idx[item.uuid]
         # Delete itself from SQL database.
-        self.fs_db.execute("DELETE FROM file_system WHERE uuid = '%s';" % item.uuid)
+        self.fs_db.execute("DELETE FROM file_system WHERE uuid = %s;", (item.uuid,))
         return
 
     def remove(self, path):
@@ -562,6 +555,7 @@ class FilesystemType:
         n_fl.parent = path_parent
         path_parent.sub_items.add(n_fl)
         path_parent.sub_names_idx[file_name] = n_fl
+        print
         self._update_in_db(path_parent)
         self._insert_in_db(n_fl)
         # Indexing and return
