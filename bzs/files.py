@@ -37,7 +37,10 @@ def format_file_size(size_b, use_binary=False, verbose=False):
             complexity_idx = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
         else:
             complexity_idx = ['Bytes', 'Kilobytes', 'Megabytes', 'Gigabytes', 'Terabytes', 'Petabytes', 'Exabytes', 'Zettabytes', 'Yottabytes']
-        complexity = int(math.log(size_b, 1000))
+        try:
+            complexity = int(math.log(size_b, 1000))
+        except:
+            complexity = 0
         size_f = size_b / 1000 ** complexity
         complexity_s = complexity_idx[complexity]
     else:
@@ -45,7 +48,10 @@ def format_file_size(size_b, use_binary=False, verbose=False):
             complexity_idx = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']
         else:
             complexity_idx = ['Bytes', 'Kibibytes', 'Mebibytes', 'Gibibytes', 'Tebibytes', 'Pebibytes', 'Exbibytes', 'Zebibytes', 'Yobibytes']
-        complexity = int(math.log(size_b, 1024))
+        try:
+            complexity = int(math.log(size_b, 1000))
+        except:
+            complexity = 0
         size_f = size_b / 1024 ** complexity
         complexity_s = complexity_idx[complexity]
     return '%.2f %s' % (size_f, complexity_s)

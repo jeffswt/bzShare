@@ -1,11 +1,13 @@
 
 import base64
 import binascii
+import cgi
 import io
 import json
 import re
 import time
 import tornado
+import urllib
 
 from bzs import const
 from bzs import db
@@ -61,29 +63,31 @@ class FilesListHandler(tornado.web.RequestHandler):
             # Getting current directory content
             files_attrib_list = list()
             for f_handle in db.Filesystem.listdir(target_path):
-                try:
+                # try:
                     file_name = f_handle['file-name']
                     actual_path = target_path + file_name
                     attrib = dict()
                     attrib['file-name'] = file_name
-                    attrib['file-size'] = f_handle['file-size']
-                    attrib['owner'] = f_handle['owner']
+                    attrib['file-name-url'] = urllib.parse.quote(file_name)
+                    attrib['file-name-escaped'] = cgi.escape(file_name)
+                    attrib['size'] = f_handle['file-size']
+                    attrib['size-str'] = files.format_file_size(attrib['size'])
+                    attrib['owner'] = f_handle['owner'] # FIXME: DO NOT USE HANDLE, USE NAME!
                     attrib['date-uploaded'] = time.strftime(const.get_const('time-format'), time.localtime(f_handle['upload-time']))
                     # Encoding MIME types
                     if f_handle['is-dir']:
                         attrib['mime-type'] = 'directory/folder'
                     else:
                         attrib['mime-type'] = files.guess_mime_type(file_name)
-                    attrib['file-name'] = f_handle['file-name']
                     # Encoding hyperlinks
                     if attrib['mime-type'] == 'directory/folder':
                         attrib['target-link'] = '/files/list/%s' % encode_str_to_hexed_b64(actual_path + '/')
                     else:
-                        attrib['target-link'] = '/files/download/%s/%s' % (encode_str_to_hexed_b64(actual_path), file_name)
+                        attrib['target-link'] = '/files/download/%s/%s' % (encode_str_to_hexed_b64(actual_path), attrib['file-name-url'])
                     attrib['uuid'] = encode_str_to_hexed_b64(actual_path)
                     files_attrib_list.append(attrib)
-                except Exception:
-                    pass
+                # except Exception:
+                #     pass
             cwd_uuid = encode_str_to_hexed_b64(files_hierarchy_cwd)
 
             # File actually exists, sending data

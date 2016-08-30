@@ -96,11 +96,11 @@
                                 % if attrib['mime-type'] == 'directory/folder':
                                     <a href="#" data-href="${attrib['target-link']}">
                                     <span class="ion ion-folder" style="font-size:24px"></span>&nbsp;
-                                    ${attrib['file-name']}
+                                    ${attrib['file-name-escaped']}
                                     </a>
                                 % else:
                                     <span class="ion ion-document" style="font-size:24px"></span>&nbsp;
-                                    ${attrib['file-name']}
+                                    ${attrib['file-name-escaped']}
                                 % endif
                                 </span>
                                 <span style="float:right">
@@ -108,14 +108,14 @@
                                     % if attrib['mime-type'] != 'directory/folder':
                                     <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'"><div class="ion ion-arrow-down-a"></div></button>
                                     % endif
-                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
+                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
                                     <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}"><div class="ion ion-checkmark-round"></div></button>
                                 </span>
                                 </div>
                             </td>
                             <td selective-hidden="small-phones">
                             % if attrib['mime-type'] != 'directory/folder':
-                            ${attrib['file-size']}
+                            ${attrib['size-str']}
                             % endif
                             </td>
                             <td selective-hidden="phones">${attrib['owner']}</td>
