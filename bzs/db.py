@@ -1,10 +1,9 @@
 
 import binascii
 import copy
-import datetime
 import hashlib
 import psycopg2
-import pytz
+import re
 import time
 import uuid
 
@@ -172,21 +171,22 @@ FileStorage = FileStorageType()
 class FilesystemType:
     """This is a virtual filesystem based on a relational PostgreSQL database.
     We might call it a SQLFS. Its tree-topological structure enables it to index
-    files and find siblings quickly. Yet without the B-Tree optimization it would
-    not be easy to maintain a high performance.
+    files and find siblings quickly. Yet without the B-Tree optimization it
+    would not be easy to maintain a high performance.
     """
     fs_uuid_idx = dict()
     fs_root = None
     fs_db = None
 
     class fsNode:
-        """This is a virtual node on a virtual filesystem SQLFS. The virtual node contains
-        the following data:
+        """This is a virtual node on a virtual filesystem SQLFS. The virtual
+        node contains the following data:
 
-            uuid        - The unique identifier: if node is a directory, then this uuid
-                          would be the identifier pointing to the directory; if node is
-                          a file, this identifier would be pointing to the UUID among
-                          the actual files instead of the filesystem.
+            uuid        - The unique identifier: if node is a directory, then
+                          this uuid would be the identifier pointing to the
+                          directory; if node is a file, this identifier would be
+                          pointing to the UUID among the actual files instead of
+                          the filesystem.
             is_dir      - Whether is a directory or not
             filename    - The actual file / directory name given by the user
             upload_time - The time uploaded / copied / moved to server
@@ -198,7 +198,7 @@ class FilesystemType:
             sub_folder    - Removed after filesystem init, temporary use only.
             sub_files     - Removed after filesystem init, temporary use only.
             sub_items     - Set of children.
-            sub_names_idx - Contains same data as sub_items, but indexed by name.
+            sub_names_idx - Dictionary of children indexed by name.
 
         Do process with caution, and use exported methods only.
         """
@@ -306,6 +306,68 @@ class FilesystemType:
         # All done, finished initialization
         return
 
+    def _sqlify_fsnode(self, item):
+        """Turns a node into SQL-compatible node."""
+        n_uuid = item.uuid
+        n_file_name = item.file_name
+        n_owner = item.owner
+        n_upload_time = item.upload_time
+        n_sub_folders = list()
+        n_sub_files = list()
+        for i_sub in item.sub_items:
+            if i_sub.is_dir:
+                n_sub_folders.append(i_sub.uuid)
+            else:
+                n_sub_files.append([
+                    i_sub.uuid,
+                    i_sub.file_name,
+                    i_sub.owner,
+                    "%f" % i_sub.upload_time,
+                    i_sub.f_uuid
+                ])
+        # Formatting string
+        return (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files)
+
+    def _update_in_db(self, item):
+        """Push updating commit to Database for changes. Does not affect
+        nonexistent nodes in Database. Otherwise please use _insert_in_db().
+
+        Operation would not be redirected to insertion because of recursive
+        risks that could potentially damage and overflow the process."""
+        # This applies to items in the
+        # We assert that item should be Node.
+        if type(item) == str:
+            item = self.locate(item)
+        if not item:
+            return False
+        # Giving a few but crucial assertions...
+        if not item.is_dir:
+            item = item.parent
+            if not item.is_dir:
+                return False # I should raise, by a matter of fact
+        # Collecting data
+        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files = self._sqlify_fsnode(item)
+        # Uploading / committing data
+        if not self.fs_db.execute("SELECT uuid FROM file_system WHERE uuid = %s;", (n_uuid,)):
+            return False # You already stated this is an updating operation!
+        self.fs_db.execute("UPDATE file_system SET file_name = %s, owner = %s, upload_time = %s, sub_folders = %s WHERE uuid = %s;", (n_file_name, n_owner, n_upload_time, n_sub_folders, n_uuid))
+        return True
+
+    def _insert_in_db(self, item):
+        """Create filesystem record of directory 'item' inside database. You
+        should not insert something that already existed. However:
+
+        We have had a precaution for this. Update operations would be taken
+        automatically instead."""
+        if not item.is_dir:
+            return False # Must be directory...
+        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files = self._sqlify_fsnode(item)
+        # Uploading / committing data
+        if self.fs_db.execute("SELECT uuid FROM file_system WHERE uuid = %s;", (n_uuid,)):
+            return self._update_in_db(item) # Existed, updating instead.
+        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files))
+        return
+
     def make_root(self):
         item = self.fsNode(True, '', 'System', master=self)
         del item.sub_files
@@ -344,195 +406,64 @@ class FilesystemType:
             except Exception:
                 return None # This object does not exist.
             path = path[1:]
+        # Guranteed correctness.
         return item
 
-    def _sqlify_fsnode(self, item):
-        n_uuid = item.uuid
-        n_file_name = item.file_name
-        n_owner = item.owner
-        n_upload_time = item.upload_time
-        n_sub_folders = list()
-        n_sub_files = list()
-        for i_sub in item.sub_items:
-            if i_sub.is_dir:
-                n_sub_folders.append(i_sub.uuid)
-            else:
-                n_sub_files.append([
-                    i_sub.uuid,
-                    i_sub.file_name,
-                    i_sub.owner,
-                    "%f" % i_sub.upload_time,
-                    i_sub.f_uuid
-                ])
-        # Formatting string
-        return (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files)
+    def is_child(self, node, parent):
+        while node:
+            if node == parent:
+                return True
+            node = node.parent
+        return False
 
-    def _update_in_db(self, item):
-        # This applies to items in the
-        # We assert that item should be Node.
-        if type(item) == str:
-            item = self.locate(item)
-        if not item:
-            return False
-        # Giving a few but crucial assertions...
-        if not item.is_dir:
-            item = item.parent
-            if not item.is_dir:
-                return False # I should raise, by a matter of fact
-        # Collecting data
-        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files = self._sqlify_fsnode(item)
-        # Uploading / committing data
-        self.fs_db.execute("UPDATE file_system SET file_name = %s, owner = %s, upload_time = %s, sub_folders = %s WHERE uuid = %s;", (n_file_name, n_owner, n_upload_time, n_sub_folders, n_uuid))
-        return True
+    def make_nice_filename(self, file_name):
+        """Create a HTML-friendly file name that does not support and does not
+        allow cross site scripting (XSS)."""
+        file_name = re.sub(r'[\\/*<>?`\'"|]', r'', file_name)
+        return file_name
 
-    def _insert_in_db(self, item):
-        """Create filesystem record of directory 'item' inside database."""
-        if not item.is_dir:
-            return False # Must be directory...
-        n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files = self._sqlify_fsnode(item)
-        # Uploading / committing data
-        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files))
-        return
+    def resolve_conflict(self, file_name, parent):
+        """Rename 'file_name' if necessary in order to make operations
+        successful in case of confliction that disrupts the SQLFS. The renamed
+        file / folder should be named like this:
 
-    def get_content(self, item):
-        """Gets binary content of the object (must be file) and returns the actual
-        content in bytes."""
-        if type(item) == str:
-            item = self.locate(item)
-        if not item:
-            return b''
-        if item.is_dir:
-            return b''
-        return FileStorage.get_content(item.f_uuid)
+        New Text Document.txt
+        New Text Document (2).txt
+        New Text Document (3).txt
 
-    def _remove_recursive(self, item):
-        """Removes content of a single object and recursively call all its
-        children for recursive removal."""
-        # We assert item is fsNode().
-        # Remove recursively.
-        for i_sub in item.sub_items:
-            self._remove_recursive(i_sub)
-        # Delete itself from filesystem.
-        del self.fs_uuid_idx[item.uuid]
-        # Delete itself from SQL database.
-        self.fs_db.execute("DELETE FROM file_system WHERE uuid = %s;", (item.uuid,))
-        return
-
-    def remove(self, path):
-        """Removes (recursively) all content of the folder / file itself and
-        all its subdirectories."""
-        if type(path) == str:
-            path = self.locate(path)
-            if not path:
-                return False
-        # Done assertion, path is now fsNode().
-        par = path.parent
-        self._remove_recursive(path)
-        if par:
-            par.sub_items.remove(path)
-            del par.sub_names_idx[path.file_name]
-            self._update_in_db(par)
-        return True
-
-    def _copy_recursive(self, item, target_par, new_owner):
-        """Copies content of a single object and recursively call all its
-        children for recursive copy, targeted as a child under target_par."""
-        # We assert item, target_par are all fsNode().
-        target_node = target_par.sub_names_idx[item.file_name]
-        for i_sub in item.sub_items:
-            i_sub.parent = item
-            item.sub_names_idx[i_sub.file_name] = i_sub
-            self._copy_recursive(i_sub, target_node, new_owner)
-        # Insert into SQL database
-        item.uuid = get_new_uuid(None, self.fs_uuid_idx)
-        self.fs_uuid_idx[item.uuid] = item
-        item.upload_time = get_current_time()
-        if new_owner:
-            item.owner = new_owner # Assignment
-        if item.is_dir:
-            self._insert_in_db(item)
-        return
-
-    def copy(self, source, target_parent, new_owner=None):
-        """Copies content of 'source' (recursively) and hang the target object
-        that was copied under the node 'target_parent'. If rename required please call
-        the related functions separatedly."""
-        if type(source) == str:
-            source = self.locate(source)
-        if type(target_parent) == str:
-            target_parent = self.locate(target_parent)
-        if not source or not target_parent:
-            return False
-        # Done assertion, now proceed with deep copy
-        target = copy.deepcopy(source)
-        target.parent = target_parent
-        target_parent.sub_items.add(target)
-        target_parent.sub_names_idx[target.file_name] = target
-        self._copy_recursive(target, target_parent, new_owner)
-        # Update target_parent data and return
-        self._update_in_db(target_parent)
-        return True
-
-    def move(self, source, target_parent):
-        if type(source) == str:
-            source = self.locate(source)
-        if type(target_parent) == str:
-            target_parent = self.locate(target_parent)
-        if not source or not target_parent:
-            return False
-        # Moving an re-assigning tree structures
-        par = source.parent
-        par.sub_items.remove(source)
-        del par.sub_names_idx[source.file_name]
-        source.parent = target_parent
-        target_parent.sub_items.add(source)
-        target_parent.sub_names_idx[source.file_name] = source
-        # Updating SQL database.
-        self._update_in_db(par)
-        self._update_in_db(target_parent)
-        return
-
-    def rename(self, item, file_name):
-        """Renames object 'item' into file_name."""
-        if type(item) == str:
-            item = self.locate(item)
-            if not item:
-                return False
-        if item.parent:
-            del item.parent.sub_names_idx[item.file_name]
-            item.file_name = file_name
-            item.parent.sub_names_idx[item.file_name] = item
-        if item.is_dir:
-            self._update_in_db(item)
+        Et cetera."""
+        if type(parent) == str:
+            parent = self.locate(parent)
+        if not parent:
+            return file_name
+        # File path assertion complete, attempting to resolve.
+        if file_name not in parent.sub_names_idx:
+            return file_name
+        # There must have been a conflict.
+        if '.' in file_name:
+            f_name = re.sub(r'^(.*)\.(.*?)$', r'\1', file_name)
+            f_suffix = '.' + re.sub(r'^(.*)\.(.*?)$', r'\2', file_name)
         else:
-            self._update_in_db(item.parent)
-        return True
-
-    def chown(self, item, owner):
-        """Assign owner of 'item' to new owner, recursively."""
-        if type(item) == str:
-            item = self.locate(item)
-            if not item:
-                return False
-        def _chown_recursive(item_, owner_):
-            for sub_ in item_.sub_items:
-                _chown_recursive(sub_, owner_)
-            item_.owner = owner_
-            if item_.is_dir:
-                self._update_in_db(item_)
-            return
-        _chown_recursive(item, owner)
-        if not item.is_dir:
-            self._update_in_db(item.parent)
-        return True
+            f_name = file_name
+            f_suffix = ''
+        for i in range(2, 10**18):
+            n_fn = '%s (%d)%s' % (f_name, i, f_suffix)
+            if n_fn not in parent.sub_names_idx:
+                return n_fn
+        # This should never happen!
+        return file_name
 
     def mkfile(self, path_parent, file_name, owner, content):
         """Inject object into filesystem, while passing in content. The content
         itself would be indexed in FileStorage."""
         if type(path_parent) == str:
             path_parent = self.locate(path_parent)
-            if not path_parent:
-                return False
+        if not path_parent:
+            return False
+        # Create an environment-friendly file name
+        file_name = self.make_nice_filename(file_name)
+        file_name = self.resolve_conflict(file_name, path_parent)
+        # Finished assertion.
         n_uuid = FileStorage.new_unique_file(content)
         n_fl = self.fsNode(False, file_name, owner, f_uuid=n_uuid, master=self)
         # Updating tree connexions
@@ -548,8 +479,12 @@ class FilesystemType:
         """Inject folder into filesystem."""
         if type(path_parent) == str:
             path_parent = self.locate(path_parent)
-            if not path_parent:
-                return False
+        if not path_parent:
+            return False
+        # Create an environment-friendly file name
+        file_name = self.make_nice_filename(file_name)
+        file_name = self.resolve_conflict(file_name, path_parent)
+        # Creating new node.
         n_fl = self.fsNode(True, file_name, owner, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
@@ -594,34 +529,199 @@ class FilesystemType:
         # Give the results to downstream
         return dirs
 
-    def shell(self):
-        """Interactive shell for manipulating SQLFS. May be integrated into other
-        utilites in the (far) futuure. Possible commands are:
+    def get_content(self, item):
+        # TODO:
+        """Gets binary content of the object (must be file) and returns the
+        actual content in bytes."""
+        if type(item) == str:
+            item = self.locate(item)
+        if not item:
+            return b''
+        if item.is_dir:
+            item = None
+            return b''
+        return FileStorage.get_content(item.f_uuid)
 
+    def _copy_recursive(self, item, target_par, new_owner):
+        """Copies content of a single object and recursively call all its
+        children for recursive copy, targeted as a child under target_par."""
+        # We assert item, target_par are all fsNode().
+        target_node = target_par.sub_names_idx[item.file_name]
+        for i_sub in item.sub_items:
+            i_sub.parent = item
+            item.sub_names_idx[i_sub.file_name] = i_sub
+            self._copy_recursive(i_sub, target_node, new_owner)
+        # Insert into SQL database
+        item.uuid = get_new_uuid(None, self.fs_uuid_idx)
+        self.fs_uuid_idx[item.uuid] = item
+        item.upload_time = get_current_time()
+        if new_owner:
+            item.owner = new_owner # Assignment
+        if item.is_dir:
+            self._insert_in_db(item)
+        return
+
+    def copy(self, source, target_parent, new_owner=None):
+        """Copies content of 'source' (recursively) and hang the target object
+        that was copied under the node 'target_parent'. Destination can be the
+        same as source folder. If rename required please call the related
+        functions separatedly."""
+        if type(source) == str:
+            source = self.locate(source)
+        if type(target_parent) == str:
+            target_parent = self.locate(target_parent)
+        if not source or not target_parent:
+            return False
+        # Create an environment-friendly file name
+        file_name = self.make_nice_filename(source.file_name)
+        file_name = self.resolve_conflict(file_name, target_parent)
+        # Done assertion, now proceed with deep copy
+        target = copy.deepcopy(source)
+        # Assigning and finishing tree connexions
+        target.file_name = file_name
+        target.parent = target_parent
+        target_parent.sub_items.add(target)
+        target_parent.sub_names_idx[target.file_name] = target
+        self._copy_recursive(target, target_parent, new_owner)
+        # Update target_parent data and return
+        self._update_in_db(target_parent)
+        return True
+
+    def move(self, source, target_parent):
+        """Copies content of 'source' (recursively) and hang the target object
+        that was copied under the node 'target_parent'. Destination should not
+        at all be the same as source folder, otherwise operation would not be
+        executed."""
+        if type(source) == str:
+            source = self.locate(source)
+        if type(target_parent) == str:
+            target_parent = self.locate(target_parent)
+        if not source or not target_parent:
+            return False
+        # It should not move itself to itself.
+        if source.parent == target_parent:
+            return False
+        # Create an environment-friendly file name
+        file_name = self.make_nice_filename(source.file_name)
+        file_name = self.resolve_conflict(file_name, target_parent)
+        source.file_name = file_name
+        # Moving an re-assigning tree structures
+        par = source.parent
+        par.sub_items.remove(source)
+        del par.sub_names_idx[source.file_name]
+        source.parent = target_parent
+        target_parent.sub_items.add(source)
+        target_parent.sub_names_idx[source.file_name] = source
+        # Updating SQL database.
+        self._update_in_db(par)
+        self._update_in_db(target_parent)
+        return
+
+    def _remove_recursive(self, item):
+        """Removes content of a single object and recursively call all its
+        children for recursive removal."""
+        # We assert item is fsNode().
+        # Remove recursively.
+        for i_sub in item.sub_items:
+            self._remove_recursive(i_sub)
+        # Delete itself from filesystem.
+        del self.fs_uuid_idx[item.uuid]
+        # Delete itself from SQL database.
+        self.fs_db.execute("DELETE FROM file_system WHERE uuid = %s;", (item.uuid,))
+        return
+
+    def remove(self, path):
+        """Removes (recursively) all content of the folder / file itself and
+        all its subdirectories."""
+        if type(path) == str:
+            path = self.locate(path)
+        if not path:
+            return False
+        # Done assertion, path is now fsNode().
+        par = path.parent
+        self._remove_recursive(path)
+        if par:
+            par.sub_items.remove(path)
+            del par.sub_names_idx[path.file_name]
+            self._update_in_db(par)
+        # There always should be a root.
+        if path == self.fs_root:
+            self.make_root()
+        # Done removal.
+        return True
+
+    def rename(self, item, file_name):
+        """Renames object 'item' into file_name."""
+        if type(item) == str:
+            item = self.locate(item)
+            if not item:
+                return False
+        if not item.parent:
+            return False # How can you rename a root?
+        # Resolving conflict and nicing file name.
+        file_name = self.make_nice_filename(file_name)
+        file_name = self.resolve_conflict(file_name, item.parent)
+        # Actually deleting
+        del item.parent.sub_names_idx[item.file_name]
+        item.file_name = file_name
+        item.parent.sub_names_idx[item.file_name] = item
+        if item.is_dir:
+            self._update_in_db(item)
+        self._update_in_db(item.parent) # At least there is a parent
+        return True
+
+    def chown(self, item, owner):
+        """Assign owner of 'item' to new owner, recursively."""
+        if type(item) == str:
+            item = self.locate(item)
+        if not item:
+            return False
+        def _chown_recursive(item_, owner_):
+            for sub_ in item_.sub_items:
+                _chown_recursive(sub_, owner_)
+            item_.owner = owner_
+            if item_.is_dir:
+                self._update_in_db(item_)
+            return
+        _chown_recursive(item, owner)
+        if not item.is_dir:
+            self._update_in_db(item.parent)
+        return True
+
+    def shell(self):
+        """Interactive shell for manipulating SQLFS. May be integrated into
+        other utilites in the (far) futuure. Possible commands are:
+
+            db command     - Execute 'command' in Database.
             ls             - List content of current directory.
             cat name       - View binary content of the object 'name'.
-            cd             - Change CWD into the given directory, must be relative.
-                             or use '..' to go to parent directory.
-            chown src usr  - Change ownership (recursively) of object 'src' to 'usr'.
+            cd             - Change CWD into the given directory, must be
+                             relative. Or use '..' to go to parent directory.
+            chown src usr  - Change ownership recursively of 'src' to 'usr'.
             rename src nam - Rename file / folder 'src' to 'nam'.
             mkdir name     - Make directory of 'name' under this directory.
             mkfile name    - Make empty file of 'name' under this directory.
-            rm name        - Remove (recursively) object of 'name' under this directory.
-            cp src dest    - Copy object 'src' to under 'dest (actual)' as destination.
-            mv src dest    - Move object 'src' to under 'dest (actual)' as destination.
+            rm name        - Remove (recursively) object of 'name' under this
+                             directory.
+            cp src dest    - Copy object 'src' to under 'dest' as destination.
+            mv src dest    - Move object 'src' to under 'dest' as destination.
             q              - Exit shell.
 
-        Would be done in a infinite loop. Use 'q' to leave."""
+        This shell should not be used in production as is not safe."""
         cwd = self.fs_root
         cuser = 'system'
         cwd_list = ['']
         while True:
             cwd_fl = ''.join((i + '/') for i in cwd_list)
-            print('root@postgres %s$ ' % cwd_fl, end='')
+            print('%s@%s %s$ ' % (self.fs_db.connect_params['user'], self.fs_db.connect_params['database'], cwd_fl), end='')
             cmd_input = input()
             cmd = cmd_input.split(' ')
             op = cmd[0]
-            if op == 'ls':
+            if op == 'db':
+                db_cmd = cmd_input.split(' ', 1)[1] or ''
+                res = self.fs_db.execute(db_cmd)
+                print(res)
+            elif op == 'ls':
                 res = self.listdir(cwd)
                 # Prettify the result
                 print('Owner       Upload Time         Size            Filename            ')
@@ -640,10 +740,14 @@ class FilesystemType:
                         cwd = cwd_dest
                         cwd_list = cwd_list[:-1]
                 else:
-                    cwd_dest = cwd.sub_names_idx[cmd[1]]
-                    if cwd_dest:
-                        cwd = cwd_dest
-                        cwd_list.append(cmd[1])
+                    try:
+                        cwd_dest = cwd.sub_names_idx[cmd[1]]
+                        if cwd_dest:
+                            cwd = cwd_dest
+                            cwd_list.append(cmd[1])
+                    except:
+                        print('Directory "%s" does not exist.' % cmd[1])
+                        pass
             elif op == 'chown':
                 dest = self.locate(cmd[1], parent=cwd)
                 self.chown(dest, cmd[2])

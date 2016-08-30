@@ -1,7 +1,7 @@
 
 universal_options_list = {
     'author': 'Geoffrey, Tang.',
-    'copyright': 'Copyright 2016, Geoffrey Tang. All lefts reversed.',
+    'copyright': 'Copyright 2016, @ht35268. All lefts reversed.',
     'db-name': 'testdb',
     'db-user': 'postgres',
     'db-password': '123456',
