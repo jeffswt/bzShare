@@ -2,8 +2,8 @@
 universal_options_list = {
     'author': 'Geoffrey, Tang.',
     'copyright': 'Copyright 2016, Geoffrey Tang. All lefts reversed.',
-    'db-name': 'postgres',
-    'db-user': 'root',
+    'db-name': 'testdb',
+    'db-user': 'postgres',
     'db-password': '123456',
     'db-host-addr': '127.0.0.1',
     'db-host-port': '8079',
