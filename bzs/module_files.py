@@ -10,7 +10,7 @@ import tornado
 import urllib
 
 from bzs import const
-from bzs import db
+from bzs import sqlfs
 from bzs import files
 from bzs import preproc
 from bzs import users
@@ -62,7 +62,7 @@ class FilesListHandler(tornado.web.RequestHandler):
 
             # Getting current directory content
             files_attrib_list = list()
-            for f_handle in db.Filesystem.listdir(target_path):
+            for f_handle in sqlfs.Filesystem.listdir(target_path):
                 # try:
                     file_name = f_handle['file-name']
                     actual_path = target_path + file_name
@@ -150,7 +150,7 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
 
         future = tornado.concurrent.Future()
         def inquire_data_async():
-            _tf_data = db.Filesystem.get_content(file_path)
+            _tf_data = sqlfs.Filesystem.get_content(file_path)
             future.set_result(_tf_data)
         tornado.ioloop.IOLoop.instance().add_callback(inquire_data_async)
         file_data = yield future
@@ -199,9 +199,11 @@ class FilesOperationHandler(tornado.web.RequestHandler):
     def post(self):
         """/files/operation/"""
         # Another concurrency blob...
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
         future = tornado.concurrent.Future()
 
-        def get_final_html_async():
+        def get_final_html_async(working_user):
             operation_content_raw = self.request.body
             operation_content = json.loads(operation_content_raw.decode('utf-8', 'ignore'))
             action = operation_content['action']
@@ -227,19 +229,19 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             # Done assigning values, now attempting to perform operation
             if action == 'copy':
                 for source in sources:
-                    db.Filesystem.copy(source, target, new_owner='user-cp')
+                    sqlfs.Filesystem.copy(source, target, new_owner=working_user.handle)
             elif action == 'move':
                 for source in sources:
-                    db.Filesystem.move(source, target)
+                    sqlfs.Filesystem.move(source, target)
             elif action == 'delete':
                 for source in sources:
-                    db.Filesystem.remove(source)
+                    sqlfs.Filesystem.remove(source)
             elif action == 'rename':
-                db.Filesystem.rename(sources, target)
+                sqlfs.Filesystem.rename(sources, target)
             elif action == 'new-folder':
-                db.Filesystem.mkdir(sources, target, 'user-nf')
+                sqlfs.Filesystem.mkdir(sources, target, 'user-nf')
             future.set_result('')
-        tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async)
+        tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async, working_user)
         file_temp = yield future
 
         self.set_status(200, "OK")
@@ -276,7 +278,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
             alter_ego.request.body = None
             target_path = decode_hexed_b64_to_str(target_path)
             # Committing changes to database
-            db.Filesystem.mkfile(target_path, file_name, working_user.username, upload_data)
+            sqlfs.Filesystem.mkfile(target_path, file_name, working_user.username, upload_data)
             # Final return
             future.set_result('bzs_upload_success')
         tornado.ioloop.IOLoop.instance().add_callback(save_file_async,

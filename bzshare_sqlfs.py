@@ -6,10 +6,10 @@ print('')
 print('SQLFS Interactive Console')
 print('=' * 60)
 
-from bzs import db
+from bzs import sqlfs
 
 try:
-    db.Filesystem.shell()
+    sqlfs.Filesystem.shell()
 except Exception:
     pass
 
