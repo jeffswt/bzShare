@@ -2,8 +2,8 @@
 import re
 import tornado
 
-from bzs import files
 from bzs import const
+from bzs import utils
 
 class StaticHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'HEAD']
@@ -17,7 +17,7 @@ class StaticHandler(tornado.web.RequestHandler):
         try:
             future = tornado.concurrent.Future()
             def get_file_data_async():
-                file_data = files.get_static_data(file_path)
+                file_data = utils.get_static_data(file_path)
                 future.set_result(file_data)
             tornado.ioloop.IOLoop.instance().add_callback(get_file_data_async)
             file_data = yield future
@@ -33,7 +33,7 @@ class StaticHandler(tornado.web.RequestHandler):
         self._headers = tornado.httputil.HTTPHeaders()
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
-        self.add_header('Content-Type', files.guess_mime_type(file_path))
+        self.add_header('Content-Type', utils.guess_mime_type(file_path))
         self.add_header('Content-Length', str(len(file_data)))
         self.xsrf_form_html() # Prefent CSRF attacks
 

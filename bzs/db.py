@@ -2,23 +2,9 @@
 import io
 import psycopg2
 import psycopg2.extras
-import time
-import uuid
 
 from bzs import const
-
-def get_current_time():
-    """Gets the current time, in float since epoch."""
-    return float(time.time())
-
-def get_new_uuid(uuid_, uuid_list=None):
-    """Creates a new UUID that is not in 'uuid_list' if given."""
-    if not uuid_:
-        uuid_ = uuid.uuid4()
-        if type(uuid_list) in [set, dict]:
-            while uuid_ in uuid_list:
-                uuid_ = uuid.uuid4()
-    return uuid_
+from bzs import utils
 
 ################################################################################
 
@@ -42,6 +28,7 @@ class DatabaseType:
                     l_cur.execute(command, args)
                 except psycopg2.ProgrammingError as err:
                     print('Exception occured in PostgreSQL while executing the command:\n    %s: %s\n    %s\n' % (type(err), err, command))
+                    # raise err
                 try:
                     if fetch_func == 'one':
                         final_arr = l_cur.fetchone()
@@ -63,50 +50,56 @@ class DatabaseType:
         print('Initializing PostgreSQL database.')
         # Purge database of obsolete tables
         self.execute("""
-            DROP TABLE core;
+            DROP TABLE IF EXISTS core;
         """)
         self.execute("""
-            DROP TABLE users;
+            DROP TABLE IF EXISTS users;
         """)
         self.execute("""
-            DROP TABLE file_system;
+            DROP TABLE IF EXISTS file_storage;
         """)
         self.execute("""
-            DROP TABLE file_storage;
+            DROP TABLE IF EXISTS file_storage_sparse;
+        """)
+        self.execute("""
+            DROP TABLE IF EXISTS file_system;
         """)
         # Creating new tables in order to function
         # TIMESTAMPs has lower precision than DOUBLE, so we are using DOUBLE PRECISION instead.
         self.execute("""
             CREATE TABLE core (
-                index   TEXT,
-                data    BYTEA
+                index       TEXT,
+                data        BYTEA
             );
             CREATE TABLE users (
-                handle          TEXT,
-                password        TEXT,
-                usergroups      TEXT[],
-                ip_address      INET[],
-                events          BYTEA[],
-                usr_name        TEXT,
-                usr_description TEXT,
-                usr_email       TEXT,
-                usr_followers   TEXT[],
-                usr_friends     TEXT[]
+                handle      TEXT,
+                data        BYTEA
+            );
+            CREATE TABLE file_storage (
+                uuid        UUID,
+                size        BIGINT,
+                count       BIGINT,
+                hash        TEXT,
+                content     OID
+            );
+            CREATE TABLE file_storage_sparse (
+                uuid        UUID,
+                size        BIGINT,
+                count       BIGINT,
+                sub_uuid    UUID[],
+                sub_size    BIGINT[],
+                sub_count   BIGINT[],
+                sub_hash    TEXT[],
+                sub_content BYTEA[]
             );
             CREATE TABLE file_system(
                 uuid        UUID,
                 file_name   TEXT,
-                owner       TEXT,
+                owner       TEXT[],
+                permissions TEXT,
                 upload_time DOUBLE PRECISION,
                 sub_folders UUID[],
                 sub_files   TEXT[][]
-            );
-            CREATE TABLE file_storage (
-                uuid    UUID,
-                size    BIGINT,
-                count   BIGINT,
-                hash    TEXT,
-                content OID
             );
         """)
         # Marking this database as initialized

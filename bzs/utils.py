@@ -2,6 +2,11 @@
 import math
 import mimetypes
 import re
+import time
+import uuid
+
+################################################################################
+# MIME Types
 
 mime_types_dict = {}
 
@@ -20,6 +25,7 @@ def guess_mime_type(filename):
 
 parse_mime_types()
 
+################################################################################
 # File data management
 
 def get_static_data(filename):
@@ -55,3 +61,22 @@ def format_file_size(size_b, use_binary=False, verbose=False):
         size_f = size_b / 1024 ** complexity
         complexity_s = complexity_idx[complexity]
     return '%.2f %s' % (size_f, complexity_s)
+
+################################################################################
+# Time operations
+
+def get_current_time():
+    """Gets the current time, in float since epoch."""
+    return float(time.time())
+
+################################################################################
+# UUID operations
+
+def get_new_uuid(uuid_, uuid_list=None):
+    """Creates a new UUID that is not in 'uuid_list' if given."""
+    if not uuid_:
+        uuid_ = uuid.uuid4()
+        if type(uuid_list) in [set, dict]:
+            while uuid_ in uuid_list:
+                uuid_ = uuid.uuid4()
+    return uuid_

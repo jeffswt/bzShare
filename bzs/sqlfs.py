@@ -7,27 +7,40 @@ import time
 import uuid
 
 from bzs import db
+from bzs import utils
 
 ################################################################################
 
 class FileStorageType:
     st_uuid_idx = dict()
+    st_uuid_sparse_idx = set()
     st_hash_idx = dict()
     # Database entry
     st_db = db.Database
     # Hashing algorithm, could be md5, sha1, sha224, sha256, sha384, sha512
     # sha384 and sha512 are not recommended due to slow speeds on 32-bit computers
-    hash_algo = hashlib.sha256
+    st_hash_algo = hashlib.sha256
+    # Limit for sparsed file detection, should not be too big for the sake of performance
+    st_sparse_limit = 16 * 1024 * 1024 # Create new sparse row if sparse row exceeded 16 MB
+    st_sparse_cnt_limit = 256 # No more than 256 files would appear in one sparse row
+    st_sparse_size = 2 * 1024 * 1024 # Files under 2 MB would be considered sparse
 
     class UniqueFile:
-        def __init__(self, uuid_=None, size=0, count=1, hash_=None, master=None):
+        def __init__(self, uuid_=None, size=0, count=1, hash_=None, sparse_id=None, master=None):
             self.master = master
-            self.uuid = db.get_new_uuid(uuid_, self.master.st_uuid_idx)
+            self.uuid = utils.get_new_uuid(uuid_, self.master.st_uuid_idx)
             self.master.st_uuid_idx[self.uuid] = self
             self.size = size
             self.count = count # The number of references
             self.hash = hash_ # Either way... must specify this!
             self.master.st_hash_idx[self.hash] = self
+            # If this item is sparsed, save the sparsed id as well.
+            if sparse_id:
+                self.sparse_uuid = sparse_id[0]
+                self.sparse_index = sparse_id[1]
+            else:
+                self.sparse_uuid = None
+                self.sparse_index = 0
             # Will not contain content, would be indexed in SQL.
             return
         pass
@@ -38,20 +51,98 @@ class FileStorageType:
     def load_sql(self, db=db.Database):
         """Loads index of all stored UniqueFiles in database."""
         self.st_db = db
+        # These are large files we are talking about.
         for item in self.st_db.execute("SELECT uuid, size, count, hash FROM file_storage;"):
             s_uuid, s_size, s_count, s_hash = item
-            s_fl = self.UniqueFile(s_uuid, s_size, s_count, s_hash, self)
+            s_fl = self.UniqueFile(s_uuid, s_size, s_count, s_hash, master=self)
             # Inject into indexer
             self.st_uuid_idx[s_uuid] = s_fl
             self.st_hash_idx[s_hash] = s_fl
+        # These are small / sparsed files we are talking about.
+        for item in self.st_db.execute("SELECT uuid, sub_uuid, sub_size, sub_count, sub_hash FROM file_storage_sparse"):
+            s_uuid, sub_uuid, sub_size, sub_count, sub_hash = item
+            sub_len = min(len(sub_uuid), len(sub_size), len(sub_count), len(sub_hash))
+            for idx in range(0, sub_len):
+                # Create sparsed file index
+                s_fl = self.UniqueFile(sub_uuid[idx], sub_size[idx], sub_count[idx], sub_hash[idx], sparse_id=(s_uuid, idx + 1), master=self)
+                # Inject into indexer
+                self.st_uuid_idx[sub_uuid[idx]] = s_fl
+                self.st_hash_idx[sub_hash[idx]] = s_fl
+            # Means there is a sparse file called this
+            self.st_uuid_sparse_idx.add(s_uuid)
+            continue
+        # Content would be ignored and later retrieved from SQL database.
         return
 
+    def new_unique_file_sparse(self, n_uuid, n_size, n_count, n_hash, content):
+        """Creates a UniqueFile that is a sparsed file, which should be
+        determined by upstream functions that it is indeed a sparsed file. Then
+        we index this file in not large objects but direct raw strings. Returns
+        the new file's UUID."""
+        # Checking hash of the file.
+        print('Creating sparse file %d' % n_size)
+        try:
+            if n_hash in self.st_hash_idx:
+                old_fl = self.st_hash_idx[n_hash]
+                old_fl.count += 1
+                self.st_db.execute("UPDATE file_storage_sparse SET sub_count[%s] = %s WHERE uuid = %s;", (old_fl.sparse_index, old_fl.count, old_fl.sparse_uuid))
+                return old_fl.uuid
+        except:
+            pass
+        # Hash not found or invalid.
+        selection = self.st_db.execute("SELECT uuid, size, count FROM file_storage_sparse WHERE size < %s AND count < %s;", (self.st_sparse_limit, self.st_sparse_cnt_limit))
+        f_uuid = None
+        try:
+            f_uuid, f_size, f_count = selection[0]
+        except Exception: pass
+        # In the case of having such an item that satisfies the limits, we insert.
+        if f_uuid:
+            # Create file in tree structure
+            u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, sparse_id=(f_uuid, f_count + 1), master=self)
+            # Indexing file in SQL database
+            self.st_db.execute("""
+                UPDATE file_storage_sparse SET
+                        size = %s, count = %s,
+                        sub_uuid = array_cat(sub_uuid, %s),
+                        sub_size = array_cat(sub_size, %s::bigint[]),
+                        sub_count = array_cat(sub_count, %s::bigint[]),
+                        sub_hash = array_cat(sub_hash, %s),
+                        sub_content = array_cat(sub_content, %s)
+                    WHERE uuid = %s;""", (
+                f_size + n_size, f_count + 1,
+                [n_uuid], [n_size], [n_count], [n_hash], [content],
+                f_uuid
+            ))
+            pass
+        # In the case we need to create a new sparse row.
+        else:
+            f_uuid = utils.get_new_uuid(None, self.st_uuid_sparse_idx)
+            self.st_uuid_sparse_idx.add(f_uuid)
+            # Creating file in tree structure
+            u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, sparse_id=(f_uuid, 1), master=self)
+            # Creating new sparse row with content of this file in SQL database
+            self.st_db.execute("""
+                INSERT INTO file_storage_sparse
+                        (uuid, size, count, sub_uuid, sub_size, sub_count, sub_hash, sub_content)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""", (
+                f_uuid, n_size, 1,
+                [n_uuid], [n_size], [n_count], [n_hash], [content]
+            ))
+            pass
+        # Inserting file handle into tree
+        self.st_uuid_idx[n_uuid] = u_fl
+        self.st_hash_idx[n_hash] = u_fl
+        return n_uuid
+
     def new_unique_file(self, content):
-        """Creates a UniqueFile, and returns its UUID in string."""
-        n_uuid = db.get_new_uuid(None, self.st_uuid_idx)
+        """Creates a UniqueFile, and returns its UUID."""
+        n_uuid = utils.get_new_uuid(None, self.st_uuid_idx)
         n_size = len(content)
         n_count = 1
-        n_hash = self.hash_algo(content).hexdigest()
+        n_hash = self.st_hash_algo(content).hexdigest()
+        # If the size is too small, we sparse it
+        if n_size < self.st_sparse_size:
+            return self.new_unique_file_sparse(n_uuid, n_size, n_count, n_hash, content)
         # Checking hash of the file.
         if n_hash in self.st_hash_idx:
             old_fl = self.st_hash_idx[n_hash]
@@ -59,7 +150,7 @@ class FileStorageType:
             self.st_db.execute("UPDATE file_storage SET count = %s WHERE uuid = %s;", (old_fl.count, old_fl.uuid))
             # We shall ignore the (1/2)**64 possibility of collisions...
             return old_fl.uuid
-        # This is indeed a unique file...
+        # This is indeed a unique file that is large enough
         u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, master=self)
         # Done indexing, now proceeding to process content into SQL (RAW)
         with self.st_db.execute_raw() as db:
@@ -90,12 +181,71 @@ class FileStorageType:
         self.st_hash_idx[n_hash] = u_fl
         return n_uuid
 
+    def remove_unique_file_sparse(self, s_fl):
+        """Removes a unique file, and if its appearances drop below 1 ( <= 0 ),
+        remove the actual coincidence of this file and its content. Moreover,
+        if the sparse row containing it has its count drop below 1 ( <= 0 )
+        after deleting this file, we remove it as well."""
+        # Decrement the count of the file by 1
+        s_fl.count -= 1
+        # Update the decrement in SQL database
+        self.st_db.execute("UPDATE file_storage_sparse SET sub_count[%s] = %s WHERE uuid = %s;", (s_fl.sparse_index, s_fl.count, s_fl.sparse_uuid))
+        # Check if this file needs to be deleted or not
+        if s_fl.count >= 1:
+            return True
+        # Removing from filesystem
+        del self.st_uuid_idx[s_fl.uuid]
+        del self.st_hash_idx[s_fl.hash]
+        # Retrieve details of this sparse row
+        if s_fl.sparse_uuid not in self.st_uuid_sparse_idx:
+            return False
+        try:
+            sp_uuid, sp_size, sp_count = self.st_db.execute("SELECT uuid, size, count FROM file_storage_sparse WHERE uuid = %s;", (s_fl.sparse_uuid,))[0]
+            sp_count = sp_count - 1
+        except: # There's really nothing I can do.
+            return False
+        # Remove this file from the sparse row
+        self.st_db.execute("""
+            UPDATE file_storage_sparse SET
+                    size = %s, count = %s,
+                    sub_uuid = array_cat(sub_uuid[0 : %s], sub_uuid[%s : %s]),
+                    sub_size = array_cat(sub_size[0 : %s], sub_size[%s : %s]),
+                    sub_count = array_cat(sub_count[0 : %s], sub_count[%s : %s]),
+                    sub_hash = array_cat(sub_hash[0 : %s], sub_hash[%s : %s]),
+                    sub_content = array_cat(sub_content[0 : %s], sub_content[%s : %s])
+                WHERE uuid = %s;""", (sp_size - s_fl.size, sp_count) + (
+            s_fl.sparse_index - 1, s_fl.sparse_index + 1, sp_count + 2
+        ) * 5 + (sp_uuid,))
+        # After removal the index of all other files must have changed representation in the tree...
+        try:
+            results = self.st_db.execute("SELECT sub_uuid FROM file_storage_sparse WHERE uuid = %s;", (sp_uuid,))[0][0]
+            for idx in range(0, len(results)):
+                sub_uuid = results[idx]
+                try: sub_fl = self.st_uuid_idx[sub_uuid]
+                except: continue
+                sub_fl.sparse_uuid = sp_uuid
+                sub_fl.sparse_index = idx + 1
+        except:
+            return False
+        # Now checking if we need to remove this row as well
+        if sp_count >= 1:
+            return True
+        # Really, we need to delete it.
+        self.st_db.execute("DELETE FROM file_storage_sparse WHERE uuid = %s;", (sp_uuid,))
+        self.st_uuid_sparse_idx.remove(sp_uuid)
+        # Done removing sparse file
+        return True
+
     def remove_unique_file(self, uuid_):
-        """Removes a unique file, and if its appearances drop below 1 ( <=0 ),
+        """Removes a unique file, and if its appearances drop below 1 ( <= 0 ),
         remove the actual coincidence of this file and its content."""
         if uuid_ not in self.st_uuid_idx:
             return True
         s_fl = self.st_uuid_idx[uuid_]
+        # If it's a sparse file, we call that function to delete it
+        if s_fl.sparse_uuid:
+            return self.remove_unique_file_sparse(s_fl)
+        # Now we are deleting a file large enough to fit in.
         s_fl.count -= 1
         self.st_db.execute("UPDATE file_storage SET count = %s WHERE uuid = %s;", (s_fl.count, s_fl.uuid))
         # Checking coincidence
@@ -114,12 +264,28 @@ class FileStorageType:
         self.st_db.execute("DELETE FROM file_storage WHERE uuid = %s;", (s_fl.uuid,))
         return True
 
+    def get_content_sparse(self, u_fl):
+        """Retrieves content from file storage and returns the content in binary
+        bytes. Consumes 8x memory per operation, but since it's a sparse file,
+        it doesn't matter."""
+        content = b''
+        selection = self.st_db.execute("SELECT sub_content[%s] FROM file_storage_sparse WHERE uuid = %s;", (u_fl.sparse_index, u_fl.sparse_uuid))
+        # Of course this writes easier...
+        try: content = selection[0][0]
+        except: content = b''
+        return content
+
     def get_content(self, uuid_):
+        """Retrieves content from file storage and returns the content in binary
+        bytes. Consumes 1x + 2 MB memory per operation."""
         try:
             u_fl = self.st_uuid_idx[uuid_]
         except Exception:
             return b''
-        # Got file handle, now querying file data
+        # If this is a sparse file, we call on subroutines to finish this
+        if u_fl.sparse_uuid:
+            return self.get_content_sparse(u_fl)
+        # Got file handle, now querying large file data
         content = b'' # Empty bytes, ready to write
         with self.st_db.execute_raw() as db:
             with db.cursor() as cur:
@@ -134,7 +300,7 @@ class FileStorageType:
                 # Making psycopg2.extensions.lobject (Large Object)
                 f_lobj = db.lobject(f_oid, 'rb')
                 # Writing query results to result
-                chunk_size = 2 * 1024 * 1024 # Chunk size of 512 KB
+                chunk_size = 2 * 1024 * 1024 # Chunk size of 2 MB
                 # Continuously reading from target
                 while True:
                     chunk = f_lobj.read(chunk_size)
@@ -193,10 +359,10 @@ class FilesystemType:
             self.file_name = file_name
             self.owner = owner
             # Generate Universally Unique Identifier
-            self.uuid = db.get_new_uuid(uuid_, master.fs_uuid_idx)
+            self.uuid = utils.get_new_uuid(uuid_, master.fs_uuid_idx)
             master.fs_uuid_idx[self.uuid] = self
             # Get upload time
-            self.upload_time = upload_time or db.get_current_time()
+            self.upload_time = upload_time or utils.get_current_time()
             if not self.is_dir:
                 self.sub_folders = set()
                 self.sub_files = set()
@@ -226,11 +392,11 @@ class FilesystemType:
                 # This is where the order goes, BEAWARE
                 s_uuid = fil_idx[0]
                 s_file_name = fil_idx[1]
-                s_owner = fil_idx[2]
+                s_owner = set(fil_idx[2].split(';'))
                 try:
                     s_upload_time = float(fil_idx[3])
                 except:
-                    s_upload_time = db.get_current_time()
+                    s_upload_time = utils.get_current_time()
                 s_f_uuid = uuid.UUID(fil_idx[4])
                 if s_f_uuid not in FileStorage.st_uuid_idx:
                     continue
@@ -242,7 +408,7 @@ class FilesystemType:
             n_sub_folders = set() # Since reference is passed, should not manipulate this further
             for fol_idx in sub_folders:
                 n_sub_folders.add(fol_idx)
-            fold_elem = self.fsNode(True, file_name, owner, uuid_, upload_time, n_sub_folders, n_sub_files, master=self)
+            fold_elem = self.fsNode(True, file_name, set(owner), uuid_, upload_time, n_sub_folders, n_sub_files, master=self)
             self.fs_uuid_idx[uuid_] = fold_elem
         # Done importing from SQL database, now attempting to refurbish connexions
         for uuid_ in self.fs_uuid_idx:
@@ -294,7 +460,7 @@ class FilesystemType:
         """Turns a node into SQL-compatible node."""
         n_uuid = item.uuid
         n_file_name = item.file_name
-        n_owner = item.owner
+        n_owner = list(item.owner)
         n_upload_time = item.upload_time
         n_sub_folders = list()
         n_sub_files = list()
@@ -305,7 +471,7 @@ class FilesystemType:
                 n_sub_files.append([
                     str(i_sub.uuid),
                     str(i_sub.file_name),
-                    i_sub.owner,
+                    ';'.join(i_sub.owner),
                     "%f" % i_sub.upload_time,
                     str(i_sub.f_uuid)
                 ])
@@ -349,11 +515,11 @@ class FilesystemType:
         # Uploading / committing data
         if self.fs_db.execute("SELECT uuid FROM file_system WHERE uuid = %s;", (n_uuid,)):
             return self._update_in_db(item) # Existed, updating instead.
-        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, n_owner, n_upload_time, n_sub_folders, n_sub_files))
+        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, list(n_owner), n_upload_time, n_sub_folders, n_sub_files))
         return
 
     def make_root(self):
-        item = self.fsNode(True, '', 'system', master=self)
+        item = self.fsNode(True, '', {'kernel'}, master=self)
         del item.sub_files
         del item.sub_folders
         item.sub_items = set()
@@ -362,7 +528,7 @@ class FilesystemType:
         self.fs_root = item
         self.fs_uuid_idx[item.uuid] = item
         # Inserting to SQL.
-        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (item.uuid, item.file_name, item.owner, item.upload_time, [], []))
+        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s);", (item.uuid, item.file_name, list(item.owner), item.upload_time, [], []))
         return
 
     def locate(self, path, parent=None):
@@ -474,7 +640,6 @@ class FilesystemType:
         n_fl.parent = path_parent
         path_parent.sub_items.add(n_fl)
         path_parent.sub_names_idx[file_name] = n_fl
-        print
         self._update_in_db(path_parent)
         self._insert_in_db(n_fl)
         # Indexing and return
@@ -535,9 +700,9 @@ class FilesystemType:
             item.sub_names_idx[i_sub.file_name] = i_sub
             self._copy_recursive(i_sub, target_node, new_owner)
         # Insert into SQL database
-        item.uuid = db.get_new_uuid(None, self.fs_uuid_idx)
+        item.uuid = utils.get_new_uuid(None, self.fs_uuid_idx)
         self.fs_uuid_idx[item.uuid] = item
-        item.upload_time = db.get_current_time()
+        item.upload_time = utils.get_current_time()
         if new_owner:
             item.owner = new_owner # Assignment
         if item.is_dir:
@@ -697,7 +862,7 @@ class FilesystemType:
 
         This shell should not be used in production as is not safe."""
         cwd = self.fs_root
-        cuser = 'system'
+        cuser = {'kernel'}
         cwd_list = ['']
         while True:
             cwd_fl = ''.join((i + '/') for i in cwd_list)
@@ -715,12 +880,12 @@ class FilesystemType:
                 print('Owner       Upload Time         Size            Filename            ')
                 print('--------------------------------------------------------------------')
                 for item in res:
-                    print('%s%s%s%s' % (item['owner'].ljust(12), str(int(item['upload-time'])).ljust(20), str(item['file-size'] if not item['is-dir'] else '').ljust(16), item['file-name']))
+                    print('%s%s%s%s' % (str(item['owner']).ljust(12), str(int(item['upload-time'])).ljust(20), str(item['file-size'] if not item['is-dir'] else '').ljust(16), item['file-name']))
                 print('Total: %d' % len(res))
                 print('')
             elif op == 'cat':
                 dest = self.locate(cmd[1], parent=cwd)
-                print(self.get_content(dest))
+                print(bytes(self.get_content(dest)))
             elif op == 'cd':
                 if cmd[1] == '..':
                     cwd_dest = cwd.parent

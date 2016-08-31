@@ -2,10 +2,10 @@
 import re
 import tornado
 
-from bzs import files
 from bzs import const
-from bzs import users
 from bzs import preproc
+from bzs import users
+from bzs import utils
 
 class HomeHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'HEAD']
@@ -17,7 +17,7 @@ class HomeHandler(tornado.web.RequestHandler):
         try:
             future = tornado.concurrent.Future()
             def get_index_html_async():
-                file_data = files.get_static_data('./static/home.html')
+                file_data = utils.get_static_data('./static/home.html')
                 working_user = users.get_user_by_cookie(
                     self.get_cookie('user_active_login', default=''))
                 file_data = preproc.preprocess_webpage(file_data, working_user)

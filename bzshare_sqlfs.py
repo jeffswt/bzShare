@@ -8,10 +8,11 @@ print('=' * 60)
 
 from bzs import sqlfs
 
-try:
-    sqlfs.Filesystem.shell()
-except Exception:
-    pass
+while True:
+    try:
+        sqlfs.Filesystem.shell()
+    except KeyboardInterrupt:
+        break
 
 print('')
 print('Exitting.')

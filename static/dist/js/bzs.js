@@ -182,22 +182,20 @@ var bzsHistoryRollfront = function() {
 }
 $('#navbar-back-button').click(bzsHistoryRollback);
 // Touch-devices-only functions.
-$('html').on('swiperight', function() {
-    var current_width = $(window).width();
-    alert(current_width)
-    if (current_width < bzsSizeTabletWidth)
-        bzsHistoryRollback();
-    return ;
-});
-$('html').on('swipeleft', function() {
-    var small_phone_width = 350;
-    var phone_width = 450;
-    var tablet_width = 768;
-    var current_width = $(window).width();
-    if (current_width < bzsSizeTabletWidth)
-        bzsHistoryRollfront();
-    return ;
-});
+if ($(window).width() <= bzsSizeTabletWidth) {
+    $('html').on('swiperight', function() {
+        var current_width = $(window).width();
+        if (current_width < bzsSizeTabletWidth)
+            bzsHistoryRollback();
+        return ;
+    });
+    $('html').on('swipeleft', function() {
+        var current_width = $(window).width();
+        if (current_width < bzsSizeTabletWidth)
+            bzsHistoryRollfront();
+        return ;
+    });
+}
 
 /*
  * Form actions

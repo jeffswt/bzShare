@@ -2,8 +2,8 @@
 import re
 import tornado
 
-from bzs import files
 from bzs import const
+from bzs import utils
 
 class Error404Handler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'HEAD']
@@ -12,7 +12,7 @@ class Error404Handler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self):
         try:
-            file_data = files.get_static_data('./static/404.html')
+            file_data = utils.get_static_data('./static/404.html')
         except Exception:
             file_data = '404 Not Found'
         self.set_status(200, "OK")

@@ -11,9 +11,9 @@ import urllib
 
 from bzs import const
 from bzs import sqlfs
-from bzs import files
 from bzs import preproc
 from bzs import users
+from bzs import utils
 
 def encode_str_to_hexed_b64(data):
     return binascii.b2a_hex(base64.b64encode(data.encode('utf-8'))).decode('utf-8')
@@ -34,7 +34,7 @@ class FilesListHandler(tornado.web.RequestHandler):
 
         def get_final_html_async(target_path):
             # Getting file template.
-            file_temp = files.get_static_data('./static/files.html')
+            file_temp = utils.get_static_data('./static/files.html')
 
             # Retrieving list operation target.
             try:
@@ -71,14 +71,14 @@ class FilesListHandler(tornado.web.RequestHandler):
                     attrib['file-name-url'] = urllib.parse.quote(file_name)
                     attrib['file-name-escaped'] = cgi.escape(file_name)
                     attrib['size'] = f_handle['file-size']
-                    attrib['size-str'] = files.format_file_size(attrib['size'])
+                    attrib['size-str'] = utils.format_file_size(attrib['size'])
                     attrib['owner'] = f_handle['owner'] # FIXME: DO NOT USE HANDLE, USE NAME!
                     attrib['date-uploaded'] = time.strftime(const.get_const('time-format'), time.localtime(f_handle['upload-time']))
                     # Encoding MIME types
                     if f_handle['is-dir']:
                         attrib['mime-type'] = 'directory/folder'
                     else:
-                        attrib['mime-type'] = files.guess_mime_type(file_name)
+                        attrib['mime-type'] = utils.guess_mime_type(file_name)
                     # Encoding hyperlinks
                     if attrib['mime-type'] == 'directory/folder':
                         attrib['target-link'] = '/files/list/%s' % encode_str_to_hexed_b64(actual_path + '/')

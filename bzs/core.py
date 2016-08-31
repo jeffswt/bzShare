@@ -13,7 +13,7 @@ import tornado.web
 
 from bzs import const
 from bzs import db
-from bzs import files
+from bzs import utils
 
 from bzs import module_error404
 from bzs import module_files
