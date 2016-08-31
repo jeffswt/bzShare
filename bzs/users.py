@@ -14,7 +14,7 @@ class User:
     def __init__(self):
         # User handle, composed only of non-capital letters, numbers and underline,
         # While not exceeding the limit of 32-byte length
-        self.username = 'guest'
+        self.handle = 'guest'
         # Password is defaultly set to blank.
         self.password = ''
         # A group of usergroups that the user belongs to.
@@ -42,8 +42,8 @@ class User:
         self = pickle.loads(source)
         return
 
-    def set_username(self, _username):
-        self.username = _username
+    def set_handle(self, _handle):
+        self.handle = _handle
         return
 
     def set_password(self, _password):
@@ -81,28 +81,6 @@ class User:
 users = dict() # string -> User
 users_cookies = dict() # string -> string
 usergroups = set() # string
-
-
-def load_users():
-#     # Usergroups initialization.
-#     usergroups = {'Guests', 'Users', 'Administrators'}
-#     users_cookies = {'': ''}
-#     # This is only a temporary version which works on
-#     # basic filesystems instead of PostgreSQL.
-#     for filename in os.listdir('./users/'):
-#         fs = open(filename, 'rb')
-#         fs_data = fs.read()
-#         nuser = User()
-#         nuser.import_data(fs_data)
-#         users[nuser.username] = nuser
-#     # Done importing
-#     return
-    # In case not initialized.
-    null_user = User()
-    if 'guest' in users:
-        return
-    users['guest'] = null_user
-    return
 
 
 def get_user_by_name(name):

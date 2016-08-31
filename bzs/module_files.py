@@ -229,7 +229,7 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             # Done assigning values, now attempting to perform operation
             if action == 'copy':
                 for source in sources:
-                    sqlfs.Filesystem.copy(source, target, new_owner=working_user.handle)
+                    sqlfs.Filesystem.copy(source, target, new_owner={working_user.handle})
             elif action == 'move':
                 for source in sources:
                     sqlfs.Filesystem.move(source, target)
@@ -239,7 +239,7 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             elif action == 'rename':
                 sqlfs.Filesystem.rename(sources, target)
             elif action == 'new-folder':
-                sqlfs.Filesystem.mkdir(sources, target, 'user-nf')
+                sqlfs.Filesystem.mkdir(sources, target, {working_user.handle})
             future.set_result('')
         tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async, working_user)
         file_temp = yield future
@@ -278,7 +278,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
             alter_ego.request.body = None
             target_path = decode_hexed_b64_to_str(target_path)
             # Committing changes to database
-            sqlfs.Filesystem.mkfile(target_path, file_name, working_user.username, upload_data)
+            sqlfs.Filesystem.mkfile(target_path, file_name, working_user.handle, upload_data)
             # Final return
             future.set_result('bzs_upload_success')
         tornado.ioloop.IOLoop.instance().add_callback(save_file_async,
