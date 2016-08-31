@@ -107,6 +107,9 @@ class FilesListHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_temp)))
+        self.xsrf_form_html() # Prefent CSRF attacks
+
+        # Push result to client in one blob
         self.write(file_temp)
         self.flush()
         self.finish()
@@ -127,7 +130,6 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         # Something that I do not wish to write too many times..
         def invoke_404():
             self.set_status(404, "Not Found")
-            self._headers = tornado.httputil.HTTPHeaders()
             self.add_header('Content-Length', '0')
             self.flush()
             return
@@ -159,6 +161,7 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'application/x-download')
         self.add_header('Content-Length', str(len(file_data)))
+        self.xsrf_form_html() # Prefent CSRF attacks
 
         while file_stream.tell() < len(file_data):
             byte_pos = file_stream.tell()
@@ -244,6 +247,9 @@ class FilesOperationHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_temp)))
+        self.xsrf_form_html() # Prefent CSRF attacks
+
+        # Push result to client in one blob
         self.write(file_temp)
         self.flush()
         self.finish()
@@ -282,6 +288,9 @@ class FilesUploadHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(response_temp)))
+        self.xsrf_form_html() # Prefent CSRF attacks
+
+        # Push result to client in one blob
         self.write(response_temp)
         self.flush()
         self.finish()

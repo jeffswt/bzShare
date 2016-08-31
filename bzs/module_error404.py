@@ -16,7 +16,6 @@ class Error404Handler(tornado.web.RequestHandler):
         except Exception:
             file_data = '404 Not Found'
         self.set_status(200, "OK")
-        self._headers = tornado.httputil.HTTPHeaders()
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')

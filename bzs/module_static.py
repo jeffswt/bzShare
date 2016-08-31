@@ -10,9 +10,9 @@ class StaticHandler(tornado.web.RequestHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
-    def get(self):
-        file_path = re.sub(r'^/static/', './static/', self.request.uri)
-
+    def get(self, file_path):
+        """/static/PATH"""
+        file_path = './static/' + file_path
         # In case it does not exist.
         try:
             future = tornado.concurrent.Future()
@@ -35,6 +35,9 @@ class StaticHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', files.guess_mime_type(file_path))
         self.add_header('Content-Length', str(len(file_data)))
+        self.xsrf_form_html() # Prefent CSRF attacks
+
+        # Push result to client in one blob
         self.write(file_data)
         self.flush()
         self.finish()

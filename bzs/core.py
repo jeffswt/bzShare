@@ -27,7 +27,7 @@ def main():
     # Creating web application
     web_app = tornado.web.Application([
             (r'^/$', module_index.MainframeHandler),
-            (r'/static/.*', module_static.StaticHandler),
+            (r'/static/(.*)$', module_static.StaticHandler),
             # (r'/static/(.*)', tornado.web.StaticFileHandler, {
             #     "path": "./static/" # Optimized static file handler with cache
             # }),

@@ -232,6 +232,21 @@ var bzsDialogInputStringLoad = function(title, placeholder, action, uuid, callba
 /*
  * Other various tweaks
  */
+// Use this script to allow XMLHttpRequest()s work well under the tornado
+// prevention of CSRF attacks.
+$.ajaxSetup({
+    beforeSend: function(jqXHR, settings) {
+        type = settings.type;
+        if (type != 'GET' && type != 'HEAD' && type != 'OPTIONS') {
+            var pattern = /(.+; *)?_xsrf *= *([^;" ]+)/;
+            var xsrf = pattern.exec(document.cookie);
+            if (xsrf) {
+                jqXHR.setRequestHeader('X-Xsrftoken', xsrf[2]);
+            }
+        }
+    }
+});
+// Remove jQuery Mobile UI-Loader.
 $(document).ready(function() {
     // This is only a HOTFIX.
     $('.ui-loader').remove();
