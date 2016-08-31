@@ -66,16 +66,16 @@ class DatabaseType:
         print('Initializing PostgreSQL database.')
         # Purge database of obsolete tables
         self.execute("""
-            DROP TABLE core;
+            DROP TABLE IF EXISTS core;
         """)
         self.execute("""
-            DROP TABLE users;
+            DROP TABLE IF EXISTS users;
         """)
         self.execute("""
-            DROP TABLE file_system;
+            DROP TABLE IF EXISTS file_system;
         """)
         self.execute("""
-            DROP TABLE file_storage;
+            DROP TABLE IF EXISTS file_storage;
         """)
         # Creating new tables in order to function
         # TIMESTAMPs has lower precision than DOUBLE, so we are using DOUBLE PRECISION instead.
