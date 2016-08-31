@@ -37,8 +37,6 @@ class HomeHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_data)))
-        self.add_header('Server', const.get_const('server-name'))
-        self.add_header('Set-Cookie', 'dtl=65466')
         self.write(file_data)
         self.flush()
         self.finish()

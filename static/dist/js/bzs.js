@@ -14,10 +14,13 @@
  * Responsive content design functions:
  *  - bzsAdaptContentToSize()
  */
+var bzsSizeSmallPhoneWidth = 350;
+var bzsSizePhoneWidth = 450;
+var bzsSizeTabletWidth = 768;
 var bzsAdaptContentToSize = function() {
-    var small_phone_width = 350;
-    var phone_width = 450;
-    var tablet_width = 768;
+    var small_phone_width = bzsSizeSmallPhoneWidth;
+    var phone_width = bzsSizePhoneWidth;
+    var tablet_width = bzsSizeTabletWidth;
     var current_width = $(window).width();
     // Set hide settings on tablets
     if (current_width <= tablet_width)
@@ -179,12 +182,20 @@ var bzsHistoryRollfront = function() {
 }
 $('#navbar-back-button').click(bzsHistoryRollback);
 // Touch-devices-only functions.
-$('#container-mainframe').on('swiperight', function() {
-    bzsHistoryRollback();
+$('html').on('swiperight', function() {
+    var current_width = $(window).width();
+    alert(current_width)
+    if (current_width < bzsSizeTabletWidth)
+        bzsHistoryRollback();
     return ;
 });
-$('#container-mainframe').on('swipeleft', function() {
-    bzsHistoryRollfront();
+$('html').on('swipeleft', function() {
+    var small_phone_width = 350;
+    var phone_width = 450;
+    var tablet_width = 768;
+    var current_width = $(window).width();
+    if (current_width < bzsSizeTabletWidth)
+        bzsHistoryRollfront();
     return ;
 });
 

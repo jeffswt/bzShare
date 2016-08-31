@@ -10,7 +10,6 @@ else:
 
 universal_options_list = {
     'author': '@ht35268',
-    'bind-port': int(os.environ.get('PORT',80)),
     'copyright': 'Copyright 2016, @ht35268. All lefts reversed.',
     'db-name': db_url.path[1:] if db_url
         else 'db_bzshare',
@@ -24,9 +23,11 @@ universal_options_list = {
         else '8079',
     'license': 'GNU GPL v3',
     'server-name': 'Tornado/4.4',
+    'server-port': int(os.environ.get('PORT',80)),
+    'server-threads': 1,
     'time-format': '%a %Y/%m/%d, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
-    'version': 'r0.18'
+    'version': 'r0.18+dev'
 }
 
 def get_const(_):

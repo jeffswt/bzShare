@@ -21,7 +21,6 @@ class Error404Handler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_data)))
-        self.add_header('Server', const.get_const('server-name'))
         self.write(file_data)
         self.flush()
         self.finish()
