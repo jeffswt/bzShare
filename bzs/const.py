@@ -27,7 +27,7 @@ universal_options_list = {
     'server-threads': 1,
     'time-format': '%a %Y/%m/%d, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
-    'version': 'r0.18+dev'
+    'version': 'r0.24'
 }
 
 def get_const(_):

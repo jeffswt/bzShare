@@ -97,3 +97,17 @@ def get_user_by_cookie(cookie):
         return get_user_by_name(users_cookies[cookie])
     # The one who do not require a cookie to login.
     return get_user_by_name('guest')
+
+################################################################################
+
+# def FilesystemPermission(self):
+
+
+
+
+
+
+
+
+
+################################################################################

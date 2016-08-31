@@ -80,7 +80,6 @@ class FileStorageType:
         we index this file in not large objects but direct raw strings. Returns
         the new file's UUID."""
         # Checking hash of the file.
-        print('Creating sparse file %d' % n_size)
         try:
             if n_hash in self.st_hash_idx:
                 old_fl = self.st_hash_idx[n_hash]
@@ -350,6 +349,23 @@ class FilesystemType:
 
         Do process with caution, and use exported methods only.
         """
+
+        master        = None
+        is_dir        = False
+        file_name     = ''
+        owner         = 'kernel'
+        permissions   = dict(
+            owner_read  = True,
+            owner_write = True,
+            owner_pass  = False,
+            other_read  = False,
+            other_write = False,
+            other_pass  = False
+        )
+        uuid          = uuid.UUID('00000000-0000-0000-0000-000000000000')
+        upload_time   = 0.0
+        sub_items     = set()
+        sub_names_idx = dict()
 
         def __init__(self, is_dir, file_name, owner, uuid_=None, upload_time=None, sub_folders=set(), sub_files=set(), f_uuid=None, master=None):
             # The filesystem / master of the node
@@ -837,6 +853,29 @@ class FilesystemType:
         _chown_recursive(item, owner)
         if not item.is_dir:
             self._update_in_db(item.parent)
+        return True
+
+    def chmod(self, item, perm):
+        """Assign permission of 'item' to new permission, non recursively. The
+        available modes and representations are:
+
+            perm = '  r    w    x    |    r    w     x  '
+                         Owners |        Non-owners  |
+                   Read  Write  |       Read Write   |
+             Effect sub_files <-+ Effect sub_files <-+
+
+        In 'read' mode, sub_files would not be seen if denied access at a parent
+            directory.
+        In 'write' mode, sub_files would not be writable if and only if it
+            itself is not writable or its parent does not allow its writing."""
+        # Parse permission information
+        if len(perm) != 6:
+            return False # Does not comply with the basics
+        standard = 'rwxrwx'
+        indices = ['owner_read', 'owner_write', 'owner_pass',
+            'other_read', 'other_write', 'other_pass']
+        for i in range(0, 6):
+            item.permissions[indices[i]] = perm[i] == standard[i]
         return True
 
     def shell(self):

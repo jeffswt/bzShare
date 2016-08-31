@@ -278,7 +278,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
             alter_ego.request.body = None
             target_path = decode_hexed_b64_to_str(target_path)
             # Committing changes to database
-            sqlfs.Filesystem.mkfile(target_path, file_name, working_user.handle, upload_data)
+            sqlfs.Filesystem.mkfile(target_path, file_name, {working_user.handle}, upload_data)
             # Final return
             future.set_result('bzs_upload_success')
         tornado.ioloop.IOLoop.instance().add_callback(save_file_async,

@@ -27,10 +27,10 @@ def main():
     # Creating web application
     web_app = tornado.web.Application([
             (r'^/$', module_index.MainframeHandler),
-            (r'/static/(.*)$', module_static.StaticHandler),
-            # (r'/static/(.*)', tornado.web.StaticFileHandler, {
-            #     "path": "./static/" # Optimized static file handler with cache
-            # }),
+            # (r'/static/(.*)$', module_static.StaticHandler),
+            (r'/static/(.*)', tornado.web.StaticFileHandler, {
+                "path": "./static/" # Optimized static file handler with cache
+            }),
             (r'^/home', module_home.HomeHandler),
             (r'^/files/?()$', module_files.FilesListHandler),
             (r'^/files/list/(.*)', module_files.FilesListHandler),
