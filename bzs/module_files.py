@@ -9,11 +9,11 @@ import time
 import tornado
 import urllib
 
-from bzs import const
-from bzs import sqlfs
-from bzs import preproc
-from bzs import users
-from bzs import utils
+from . import const
+from . import sqlfs
+from . import preproc
+from . import users
+from . import utils
 
 def encode_str_to_hexed_b64(data):
     return binascii.b2a_hex(base64.b64encode(data.encode('utf-8'))).decode('utf-8')

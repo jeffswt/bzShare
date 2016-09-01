@@ -3,8 +3,8 @@ import io
 import psycopg2
 import psycopg2.extras
 
-from bzs import const
-from bzs import utils
+from . import const
+from . import utils
 
 ################################################################################
 

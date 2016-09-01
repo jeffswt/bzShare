@@ -2,8 +2,8 @@
 import mako
 import mako.template
 
-from bzs import const
-from bzs import users
+from . import const
+from . import users
 
 def preprocess_webpage(data, content_user, **additional_arguments):
     if type(data) == bytes:

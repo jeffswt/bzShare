@@ -100,7 +100,25 @@ def get_user_by_cookie(cookie):
 
 ################################################################################
 
-# def FilesystemPermission(self):
+def FilesystemPermissions(self):
+    """Manages the permissions of the filesystem, separated from the main
+    filesystem manager. This requires the use of user management, which is
+    equipped in the users module.
+
+    Remote operations on the file system should be verified through this module
+    before operating.
+
+    Specific operations on the file system should also call the post-process
+    procedures in this class for special security precautions, to prevent the
+    user from viewing anything inappropriate."""
+
+    fs = None
+
+    def __init__(self, fs=Database):
+        self.fs = fs
+        return
+    pass
+
 
 
 

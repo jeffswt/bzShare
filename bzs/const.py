@@ -1,5 +1,6 @@
 
 import urllib
+import urllib.parse
 import os
 
 urllib.parse.uses_netloc.append('postgres')

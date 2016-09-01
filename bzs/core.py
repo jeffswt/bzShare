@@ -11,15 +11,15 @@ import tornado.ioloop
 import tornado.process
 import tornado.web
 
-from bzs import const
-from bzs import db
-from bzs import utils
+from . import const
+from . import db
+from . import utils
 
-from bzs import module_error404
-from bzs import module_files
-from bzs import module_home
-from bzs import module_index
-from bzs import module_static
+from . import module_error404
+from . import module_files
+from . import module_home
+from . import module_index
+from . import module_static
 
 WEB_PORT = 80
 

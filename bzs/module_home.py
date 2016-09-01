@@ -2,10 +2,10 @@
 import re
 import tornado
 
-from bzs import const
-from bzs import preproc
-from bzs import users
-from bzs import utils
+from . import const
+from . import preproc
+from . import users
+from . import utils
 
 class HomeHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'HEAD']

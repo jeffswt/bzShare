@@ -2,8 +2,8 @@
 import re
 import tornado
 
-from bzs import const
-from bzs import utils
+from . import const
+from . import utils
 
 class Error404Handler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'HEAD']
