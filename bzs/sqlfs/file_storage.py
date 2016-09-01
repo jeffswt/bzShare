@@ -5,19 +5,11 @@ import threading
 import uuid
 
 class FileStorage:
-    st_uuid_idx        = dict()
-    st_uuid_sparse_idx = set()
-    st_hash_idx        = dict()
-    st_db              = None
-    utils_pkg          = None
-    thr_lock           = threading.Lock()
-    # Hashing algorithm, could be md5, sha1, sha224, sha256, sha384, sha512
-    # sha384 and sha512 are not recommended due to slow speeds on 32-bit computers
-    st_hash_algo        = hashlib.sha256
-    # Limit for sparsed file detection, should not be too big for the sake of performance
-    st_sparse_limit     = 16 * 1024 * 1024 # Create new sparse row if sparse row exceeded 16 MB
-    st_sparse_cnt_limit = 256 # No more than 256 files would appear in one sparse row
-    st_sparse_size      = 2 * 1024 * 1024 # Files under 2 MB would be considered sparse
+    """This is a storage system built for bzs.sqlfs.file_system.Filesystem,
+    which handles files for Filesystem, large files directly use LOBJECT, and
+    small / sparsed files use BYTEA. This could handle a great amount of files
+    through manipulation of the SQL database without the loss of a great many
+    rows. Sparse files should be disabled if server has no row limit."""
 
     class UniqueFile:
         """This is a virtual file node on a virtual filesystem SQLFS. The
@@ -39,7 +31,6 @@ class FileStorage:
         Other data designed to maintain the content of the file includes:
 
             master   - The filesystem itself.
-            thr_lock - The threading lock to prevent harmful operations.
 
         Do process with caution, and use exported methods only.
         """
@@ -50,7 +41,6 @@ class FileStorage:
         hash         = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
         sparse_uuid  = None
         sparse_index = 0
-        thr_lock     = threading.Lock()
 
         def __init__(self, uuid_=None, size=0, count=1, hash_=None, sparse_id=None, master=None):
             self.master = master
@@ -68,9 +58,6 @@ class FileStorage:
                 self.sparse_uuid = None
                 self.sparse_index = 0
             # Will not contain content, would be indexed in SQL.
-            self.thr_lock = threading.Lock()
-            if self.thr_lock.locked():
-                self.thr_lock.release()
             return
         pass
 
@@ -80,8 +67,15 @@ class FileStorage:
             raise AttributeError('Must provide a database')
         if not utils_package:
             raise AttributeError('Must provide bzShare utilites')
-        self.st_db     = database
-        self.utils_pkg = utils_package
+        self.st_uuid_idx         = dict()
+        self.st_uuid_sparse_idx  = set()
+        self.st_hash_idx         = dict()
+        self.st_db               = database
+        self.utils_pkg           = utils_package
+        self.st_hash_algo        = hashlib.sha256 # Hashing algorithm, could be md5, sha1, sha224, sha256, sha384, sha512, while sha384 and sha512 are not recommended due to slow speeds on 32-bit computers
+        self.st_sparse_limit     = 16 * 1024 * 1024 # Create new sparse row if sparse row exceeded 16 MB
+        self.st_sparse_cnt_limit = 256 # No more than 256 files would appear in one sparse row
+        self.st_sparse_size      = 2 * 1024 * 1024 # Files under 2 MB would be considered sparse
         # These are large files we are talking about.
         for item in self.st_db.execute("SELECT uuid, size, count, hash FROM file_storage;"):
             s_uuid, s_size, s_count, s_hash = item
@@ -345,25 +339,19 @@ class FileStorage:
 
     def new_unique_file(self, content):
         """Creates a UniqueFile, and returns its UUID."""
-        self.thr_lock.acquire()
         ret_result = self.__new_unique_file(content)
-        self.thr_lock.release()
         return ret_result
 
     def remove_unique_file(self, uuid_):
         """Removes a unique file, and if its appearances drop below 1 ( <= 0 ),
         remove the actual coincidence of this file and its content."""
-        self.thr_lock.acquire()
         ret_result = self.__remove_unique_file(uuid_)
-        self.thr_lock.release()
         return ret_result
 
     def get_content(self, uuid_):
         """Retrieves content from file storage and returns the content in binary
         bytes. Consumes 1x + 2 MB memory per operation."""
-        self.thr_lock.acquire()
         ret_result = self.__get_content(uuid_)
-        self.thr_lock.release()
         return ret_result
 
     pass

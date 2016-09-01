@@ -80,3 +80,12 @@ def get_new_uuid(uuid_, uuid_list=None):
             while uuid_ in uuid_list:
                 uuid_ = uuid.uuid4()
     return uuid_
+
+def get_new_cookie(cookies_list=None):
+    cookie = ''
+    if not cookies_list:
+        cookies_list = ['']
+    while cookie in users_cookies:
+        cookie = base64.b64encode(str(random.randrange(0, 10**1024)).ljust(128)[:128].encode(
+'utf-8', 'ignore')).decode('utf-8', 'ignore')
+    return cookie
