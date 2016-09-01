@@ -35,6 +35,8 @@ class FilesListHandler(tornado.web.RequestHandler):
         def get_final_html_async(target_path):
             # Getting file template.
             file_temp = utils.get_static_data('./static/files.html')
+            working_user = users.get_user_by_cookie(
+                self.get_cookie('user_active_login', default=''))
 
             # Retrieving list operation target.
             try:
@@ -62,8 +64,8 @@ class FilesListHandler(tornado.web.RequestHandler):
 
             # Getting current directory content
             files_attrib_list = list()
-            for f_handle in sqlfs.Filesystem.listdir(target_path):
-                # try:
+            for f_handle in sqlfs.list_directory(target_path, user=working_user):
+                try:
                     file_name = f_handle['file-name']
                     actual_path = target_path + file_name
                     attrib = dict()
@@ -72,8 +74,12 @@ class FilesListHandler(tornado.web.RequestHandler):
                     attrib['file-name-escaped'] = cgi.escape(file_name)
                     attrib['size'] = f_handle['file-size']
                     attrib['size-str'] = utils.format_file_size(attrib['size'])
-                    attrib['owner'] = f_handle['owner'] # FIXME: DO NOT USE HANDLE, USE NAME!
                     attrib['date-uploaded'] = time.strftime(const.get_const('time-format'), time.localtime(f_handle['upload-time']))
+                    # Encoding owners
+                    attrib['owners'] = list()
+                    for ownr in f_handle['owners']:
+                        attrib['owners'].append(users.get_name_by_id(ownr))
+                    attrib['owners'] = ', '.join(attrib['owners'])
                     # Encoding MIME types
                     if f_handle['is-dir']:
                         attrib['mime-type'] = 'directory/folder'
@@ -86,13 +92,11 @@ class FilesListHandler(tornado.web.RequestHandler):
                         attrib['target-link'] = '/files/download/%s/%s' % (encode_str_to_hexed_b64(actual_path), attrib['file-name-url'])
                     attrib['uuid'] = encode_str_to_hexed_b64(actual_path)
                     files_attrib_list.append(attrib)
-                # except Exception:
-                #     pass
+                except Exception:
+                    pass
             cwd_uuid = encode_str_to_hexed_b64(files_hierarchy_cwd)
 
             # File actually exists, sending data
-            working_user = users.get_user_by_cookie(
-                self.get_cookie('user_active_login', default=''))
             file_temp = preproc.preprocess_webpage(file_temp, working_user,
                 files_attrib_list=files_attrib_list,
                 files_hierarchy_list=files_hierarchy_list,
@@ -133,6 +137,8 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
             self.add_header('Content-Length', '0')
             self.flush()
             return
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
 
         # Get file location (exactly...)
         try:
@@ -149,10 +155,11 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         file_data = None
 
         future = tornado.concurrent.Future()
-        def inquire_data_async():
-            _tf_data = sqlfs.Filesystem.get_content(file_path)
+        def inquire_data_async(working_user):
+            _tf_data = sqlfs.get_content(file_path, user=working_user)
             future.set_result(_tf_data)
-        tornado.ioloop.IOLoop.instance().add_callback(inquire_data_async)
+        tornado.ioloop.IOLoop.instance().add_callback(
+            inquire_data_async, working_user)
         file_data = yield future
         file_stream = io.BytesIO(file_data)
 
@@ -229,19 +236,20 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             # Done assigning values, now attempting to perform operation
             if action == 'copy':
                 for source in sources:
-                    sqlfs.Filesystem.copy(source, target, new_owner={working_user.handle})
+                    sqlfs.copy(source, target, user=working_user)
             elif action == 'move':
                 for source in sources:
-                    sqlfs.Filesystem.move(source, target)
+                    sqlfs.move(source, target, user=working_user)
             elif action == 'delete':
                 for source in sources:
-                    sqlfs.Filesystem.remove(source)
+                    sqlfs.remove(source, user=working_user)
             elif action == 'rename':
-                sqlfs.Filesystem.rename(sources, target)
+                sqlfs.rename(sources, target, user=working_user)
             elif action == 'new-folder':
-                sqlfs.Filesystem.mkdir(sources, target, {working_user.handle})
+                sqlfs.create_directory(sources, target, user=working_user)
             future.set_result('')
-        tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async, working_user)
+        tornado.ioloop.IOLoop.instance().add_callback(
+            get_final_html_async, working_user)
         file_temp = yield future
 
         self.set_status(200, "OK")
@@ -278,7 +286,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
             alter_ego.request.body = None
             target_path = decode_hexed_b64_to_str(target_path)
             # Committing changes to database
-            sqlfs.Filesystem.mkfile(target_path, file_name, {working_user.handle}, upload_data)
+            sqlfs.create_file(target_path, file_name, upload_data, user=working_user)
             # Final return
             future.set_result('bzs_upload_success')
         tornado.ioloop.IOLoop.instance().add_callback(save_file_async,

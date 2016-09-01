@@ -114,20 +114,22 @@
                                 </div>
                             </td>
                             <td selective-hidden="small-phones">
-                            % if attrib['mime-type'] != 'directory/folder':
-                            ${attrib['size-str']}
-                            % endif
-                            </td>
-                            <td selective-hidden="phones">${attrib['owner']}</td>
-                            <td selective-hidden="tablets">
-                            % if attrib['mime-type'] != 'directory/folder':
-                            ${attrib['mime-type']}
-                            % endif
+                                % if attrib['mime-type'] != 'directory/folder':
+                                ${attrib['size-str']}
+                                % endif
                             </td>
                             <td selective-hidden="phones">
-                            % if attrib['mime-type'] != 'directory/folder':
-                            ${attrib['date-uploaded']}
-                            % endif
+                                ${attrib['owners']}
+                            </td>
+                            <td selective-hidden="tablets">
+                                % if attrib['mime-type'] != 'directory/folder':
+                                ${attrib['mime-type']}
+                                % endif
+                            </td>
+                            <td selective-hidden="phones">
+                                % if attrib['mime-type'] != 'directory/folder':
+                                ${attrib['date-uploaded']}
+                                % endif
                             </td>
                         </tr>
                         % endfor

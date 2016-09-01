@@ -3,8 +3,9 @@ import pickle
 import random
 import base64
 
-from . import utils
+from . import const
 from . import db
+from . import utils
 
 class UserManagerType:
     class User:
@@ -60,7 +61,7 @@ class UserManagerType:
             raise AttributeError('Must provide a database')
         self.users         = dict() # string -> User
         self.users_cookies = dict() # string -> string(handle)
-        self.usergroups    = set() # string
+        self.usergroups    = dict() # string -> string(name)
         self.usr_db        = database # Database
         # Selecting usergroups
         item = self.usr_db.execute("SELECT index, data FROM core WHERE index = 'usergroups';")
@@ -69,7 +70,7 @@ class UserManagerType:
             self.usergroups = item # Uploaded.
         except:
             item = set()
-            self.add_usergroup('public')
+            self.add_usergroup('public', 'Public')
         # Done attribution, now selecting users
         for item in self.usr_db.execute("SELECT handle, data FROM users;"):
             handle, bin_data = item
@@ -81,6 +82,18 @@ class UserManagerType:
             n_usr = self.User(master=self)
             self.add_user(n_usr)
             n_usr.save_data()
+        # Adding superusers
+        if 'kernel' not in self.users:
+            n_usr = self.User(
+                handle = 'kernel',
+                password = const.get_const('server-admin-password'),
+                usergroups = {'public'},
+                usr_name = 'bzShare Kernel',
+                usr_description = 'The core manager of bzShare.',
+                master = self
+            )
+            self.add_user(n_usr)
+            # This should never be inserted into server database.
         return
 
     def add_user(self, n_usr):
@@ -89,8 +102,8 @@ class UserManagerType:
             self.users_cookies[n_usr.cookie] = n_usr.handle
         return
 
-    def add_usergroup(self, n_grp):
-        self.usergroups.add(n_grp)
+    def add_usergroup(self, n_grp, grp_name):
+        self.usergroups[n_grp] = grp_name
         usg_raw = pickle.dumps(self.usergroups)
         if not self.usr_db.execute("SELECT index FROM core WHERE index = %s;", ('usergroups',)):
             self.usr_db.execute("INSERT INTO core (index, data) VALUES (%s, %s)", ('usergroups', usg_raw))
@@ -112,6 +125,11 @@ class UserManagerType:
         # The one who do not require a cookie to login.
         return self.get_user_by_name('guest')
 
+    def get_name_by_id(self, n_id):
+        if n_id in self.usergroups:
+            return self.usergroups[n_id]
+        return get_user_by_name(n_id).usr_name
+
 UserManager = UserManagerType(
     database = db.Database
 )
@@ -122,11 +140,14 @@ UserManager = UserManagerType(
 def add_user(user):
     return UserManager.add_user(user)
 
-def add_usergroup(usergroup):
-    return UserManager.add_usergroup(usergroup)
+def add_usergroup(usergroup, usergroup_name):
+    return UserManager.add_usergroup(usergroup, usergroup_name)
 
 def get_user_by_name(name):
     return UserManager.get_user_by_name(name)
 
 def get_user_by_cookie(cookie):
     return UserManager.get_user_by_cookie(cookie)
+
+def get_name_by_id(n_id):
+    return UserManager.get_name_by_id(n_id)

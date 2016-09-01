@@ -23,6 +23,7 @@ universal_options_list = {
     'db-host-port': db_url.port if db_url
         else '8079',
     'license': 'GNU GPL v3',
+    'server-admin-password': '12345678',
     'server-name': 'Tornado/4.4',
     'server-port': int(os.environ.get('PORT',80)),
     'server-threads': 1,

@@ -27,24 +27,24 @@ FilesystemPermissions = file_system_permissions.FilesystemPermissions(
 ################################################################################
 # Exported file-system functions, thread-safe, permission-safe.
 
-def create_file(self, path_parent, file_name, owners, content, user=None):
+def create_file(path_parent, file_name, content, user=None):
     """Inject object into filesystem, while passing in content. The content
     itself would be indexed in FileStorage. If 'path-parent' is not writable,
     then the creation would be denied."""
-    if user and not FilesystemPermissions.writable(path_parent, user):
+    if not user or not FilesystemPermissions.writable(path_parent, user):
         return False
-    ret_result = Filesystem.create_file(path_parent, file_name, owners, content)
+    ret_result = Filesystem.create_file(path_parent, file_name, {user.handle}, content)
     return ret_result
 
-def create_directory(self, path_parent, file_name, owners, user=None):
+def create_directory(path_parent, file_name, user=None):
     """Create directory under path_parent into filesystem. If 'path-parent' is
     not writable, then the creation would be denied."""
-    if user and not FilesystemPermissions.writable(path_parent, user):
+    if not user or not FilesystemPermissions.writable(path_parent, user):
         return False
-    ret_result = Filesystem.create_folder(path_parent, file_name, owners)
+    ret_result = Filesystem.create_directory(path_parent, file_name, {user.handle})
     return ret_result
 
-def copy(self, source, target_parent, user=None):
+def copy(source, target_parent, user=None):
     """Copies content of 'source' (recursively) and hang the target object
     that was copied under the node 'target_parent'. Destination can be the
     same as source folder."""
@@ -57,7 +57,7 @@ def copy(self, source, target_parent, user=None):
         FilesystemPermissions.copy_reown(ret_result, user)
     return True if ret_result != None else False
 
-def move(self, source, target_parent, user=None):
+def move(source, target_parent, user=None):
     """Moves content of 'source' (recursively) and hang the target object
     that was moved under the node 'target_parent'. Destination should not
     at all be the same as source folder, otherwise operation would not be
@@ -71,7 +71,7 @@ def move(self, source, target_parent, user=None):
     ret_result = Filesystem.move(source, target_parent)
     return ret_result
 
-def remove(self, path, user=None):
+def remove(path, user=None):
     """Removes (recursively) all content of the folder / file itself and
     all its subdirectories. Must have read and write access."""
     if user and not FilesystemPermissions.readable(path, user):
@@ -135,7 +135,7 @@ def list_directory(path, user=None):
         ret_result.append(item)
     return ret_result
 
-def get_content(self, path):
+def get_content(path):
     """Gets binary content of the object (must be file) and returns the
     actual content in bytes."""
     if user and not FilesystemPermissions.readable(path):

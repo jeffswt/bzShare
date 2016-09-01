@@ -24,6 +24,7 @@ from . import module_static
 WEB_PORT = 80
 
 def main():
+    print('Done pre-loading, snapping into main module.')
     # Creating web application
     web_app = tornado.web.Application([
             (r'^/$', module_index.MainframeHandler),
