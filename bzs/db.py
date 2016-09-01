@@ -95,7 +95,7 @@ class DatabaseType:
             CREATE TABLE file_system(
                 uuid        UUID,
                 file_name   TEXT,
-                owner       TEXT[],
+                owners      TEXT[],
                 permissions TEXT,
                 upload_time DOUBLE PRECISION,
                 sub_folders UUID[],
