@@ -26,7 +26,7 @@ class FilesystemPermissions:
         for grp in user.usergroups:
             if grp in owners:
                 return True
-        return user in owners
+        return user.handle in owners
 
     def __accessible(self, node, user, mode):
         """Wrapping function for determining a single attribute."""
@@ -42,10 +42,10 @@ class FilesystemPermissions:
             res_2 = True
         return res_1 and res_2
 
-    def readable(self, node, user):
+    def readable(self, node, user, parent=None):
         """Whether an object is readable. If one of its parents are unreadable,
         then itself will also be unreadable."""
-        node = self.fs.locate(node)
+        node = self.fs.locate(node, parent)
         if not node:
             return False
         # Check itself and all its parents to see if readable
@@ -58,11 +58,27 @@ class FilesystemPermissions:
         # If we don't check all there may be a possibility that people can determine which folders are unreadable through the response timing
         return res
 
-    def writable(self, node, user):
+    def readable_all(self, path, user, parent=None):
+        """Check permissions of a folder whether all its subfolders are
+        readable."""
+        node = self.fs.locate(path, parent)
+        if not node:
+            return False
+        if not self.readable(node, user):
+            return False
+        def _rd_all(item, user):
+            c_res = True
+            for i_sub in item.sub_items:
+                c_res = c_res and _rd_all(i_sub, user)
+            c_res = c_res and self.__accessible(item, user, 'read')
+            return c_res
+        return _rd_all(node, user)
+
+    def writable(self, node, user, parent=None):
         """Whether an object is writable. It only matters that its direct
         parent does not allow children to be writable and itself does not
         gurantee write access likewise."""
-        node = self.fs.locate(node)
+        node = self.fs.locate(node, parent)
         if not node:
             return False
         return self.__accessible(node, user, 'write')
@@ -77,9 +93,15 @@ class FilesystemPermissions:
             c_res = True
             for i_sub in item.sub_items:
                 c_res = c_res and _wr_all(i_sub, user)
-            c_res = c_res and self.__writable()
+            c_res = c_res and self.writable(item, user)
             return c_res
         return _wr_all(node, user)
+
+    def read_writable(self, path, user, parent=None):
+        return self.readable(path, user, parent) and self.writable(path, user, parent)
+
+    def read_writable_all(self, path, user, parent=None):
+        return self.readable_all(path, user, parent) and self.writable_all(path, user, parent)
 
     def copy_reown(self, path, user, parent=None):
         """Reset ownership of a folder, and if ownership does not gurantee

@@ -487,7 +487,7 @@ class Filesystem:
             self.__insert_in_db(item)
         return
 
-    def __copy(self, source, target_parent, new_owners=None):
+    def __copy(self, source, target_parent, new_owners=None, return_handle=False):
         """Copies content of 'source' (recursively) and hang the target object
         that was copied under the node 'target_parent'. Destination can be the
         same as source folder. If rename required please call the related
@@ -495,7 +495,7 @@ class Filesystem:
         source = self.__locate(source)
         target_parent = self.__locate(target_parent)
         if not source or not target_parent:
-            return False
+            return False if not return_handle else None
         # Create an environment-friendly file name
         file_name = self.__make_nice_filename(source.file_name)
         file_name = self.__resolve_conflict(file_name, target_parent)
@@ -509,9 +509,9 @@ class Filesystem:
         self.__copy_recursive(target, target_parent, new_owners)
         # Update target_parent data and return
         self.__update_in_db(target_parent)
-        return True
+        return True if not return_handle else target
 
-    def __move(self, source, target_parent):
+    def __move(self, source, target_parent, return_handle=False):
         """Copies content of 'source' (recursively) and hang the target object
         that was copied under the node 'target_parent'. Destination should not
         at all be the same as source folder, otherwise operation would not be
@@ -519,10 +519,10 @@ class Filesystem:
         source = self.__locate(source)
         target_parent = self.__locate(target_parent)
         if not source or not target_parent:
-            return False
+            return False if not return_handle else None
         # It should not move itself to itself.
         if source.parent == target_parent:
-            return False
+            return False if not return_handle else None
         # Create an environment-friendly file name
         file_name = self.__make_nice_filename(source.file_name)
         file_name = self.__resolve_conflict(file_name, target_parent)
@@ -537,7 +537,7 @@ class Filesystem:
         # Updating SQL database.
         self.__update_in_db(par)
         self.__update_in_db(target_parent)
-        return
+        return True if not return_handle else source
 
     def __remove_recursive(self, item):
         """Removes content of a single object and recursively call all its
@@ -728,15 +728,25 @@ class Filesystem:
         that was copied under the node 'target_parent'. Destination can be the
         same as source folder. If rename required please call the related
         functions separatedly."""
-        ret_result = self.__copy(source, target_parent, new_owners)
+        ret_result = self.__copy(source, target_parent, new_owners=new_owners)
+        return ret_result
+
+    def copy_with_handle(self, source, target_parent, new_owners=None):
+        """Same as copy(), returns HANDLE or None."""
+        ret_result = self.__copy(source, target_parent, new_owners=new_owners, return_handle=True)
         return ret_result
 
     def move(self, source, target_parent):
-        """Copies content of 'source' (recursively) and hang the target object
-        that was copied under the node 'target_parent'. Destination should not
+        """Moves content of 'source' (recursively) and hang the target object
+        that was moved under the node 'target_parent'. Destination should not
         at all be the same as source folder, otherwise operation would not be
         executed."""
         ret_result = self.__move(source, target_parent)
+        return ret_result
+
+    def move_with_handle(self, source, target_parent):
+        """Same as move(), returns HANDLE or None."""
+        ret_result = self.__copy(source, target_parent, return_handle=True)
         return ret_result
 
     def remove(self, path):
@@ -790,10 +800,10 @@ class Filesystem:
         ret_result = self.__listdir(path)
         return ret_result
 
-    def get_content(self, item):
+    def get_content(self, path):
         """Gets binary content of the object (must be file) and returns the
         actual content in bytes."""
-        ret_result = self.__get_content()
+        ret_result = self.__get_content(path)
         return ret_result
 
     def shell(self):
