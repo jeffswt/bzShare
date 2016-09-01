@@ -347,6 +347,8 @@ class Filesystem:
         """Create a HTML-friendly file name that does not support and does not
         allow cross site scripting (XSS)."""
         file_name = re.sub(r'[\\/*<>?`\'"|\r\n]', r'', file_name)
+        if len(file_name) <= 0:
+            file_name = 'Empty name'
         return file_name
 
     def __resolve_conflict(self, file_name, parent):
