@@ -1,6 +1,8 @@
 
 import copy
 
+from .. import users
+
 class FilesystemPermissions:
     """Manages the permissions of the filesystem, separated from the main
     filesystem manager. This requires the use of user management, which is
