@@ -105,7 +105,7 @@
                                 <span style="float:right">
                                 <div class="btn-group">
                                     % if attrib['mime-type'] != 'directory/folder':
-                                    <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'"><div class="ion ion-arrow-down-a"></div></button>
+                                    <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'" target="_blank"><div class="ion ion-arrow-down-a"></div></button>
                                     % endif
                                     <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
                                     <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}"><div class="ion ion-checkmark-round"></div></button>
