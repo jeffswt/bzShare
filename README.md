@@ -37,7 +37,7 @@ All screenshots were taken on a Google Chrome.
 
 # Todo List
 
-  - [ ] Implement a working user management module with permission management limiting file and folder access from users.
+  - [x] Implement a working user management module with permission management limiting file and folder access from users.
   - [ ] Improve sparsed file performance by implementing element re-use methods, thereby improving deletion speed. Copy and moving speed are virtually neglectible. Saving another array to store those nodes which have been removed can be very useful, therefore filling up the blanks.
   - [ ] Use an asynchronous model for filesystem management, returning progress to the web client whenever called. Progress bars should be implemented in the user interface.
   - [ ] Multithread the SQLFS manager in order to make it asynchronously link with the web server.

@@ -41,13 +41,15 @@ class UserManagerType:
             return
         def login(self):
             if not self.cookie:
-                self.cookie = utils.get_new_cookie(users_cookies)
-                users_cookies[self.cookie] = self.handle
+                self.cookie = utils.get_new_cookie(self.master.users_cookies)
+                self.master.users_cookies[self.cookie] = self.handle
+                self.save_data()
             return self.cookie
         def logout(self):
             if self.cookie:
-                del users_cookies[self.cookie]
+                del self.master.users_cookies[self.cookie]
                 self.cookie = None
+                self.save_data()
             return
         def add_ip_address(self, _ip):
             self.ip_addresses.append(_ip)
@@ -111,6 +113,20 @@ class UserManagerType:
             self.usr_db.execute("UPDATE core SET data = %s WHERE index = %s;", ('usg_raw', 'usergroups'))
         return
 
+    def login_user(self, handle, password):
+        usr = self.get_user_by_name(handle)
+        if usr.handle == 'guest':
+            return None
+        if usr.password != password:
+            return None
+        return usr.login()
+
+    def logout_user(self, handle):
+        usr = self.get_user_by_name(handle)
+        if usr.handle == 'guest':
+            return
+        return usr.logout()
+
     def get_user_by_name(self, name):
         if name in self.users:
             return self.users[name]
@@ -120,7 +136,7 @@ class UserManagerType:
         return self.User(master=self)
 
     def get_user_by_cookie(self, cookie):
-        if cookie in self.users:
+        if cookie in self.users_cookies:
             return self.get_user_by_name(self.users_cookies[cookie])
         # The one who do not require a cookie to login.
         return self.get_user_by_name('guest')
@@ -142,6 +158,12 @@ def add_user(user):
 
 def add_usergroup(usergroup, usergroup_name):
     return UserManager.add_usergroup(usergroup, usergroup_name)
+
+def login_user(handle, password):
+    return UserManager.login_user(handle, password)
+
+def logout_user(handle):
+    return UserManager.logout_user(handle)
 
 def get_user_by_name(name):
     return UserManager.get_user_by_name(name)

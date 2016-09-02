@@ -139,6 +139,18 @@ var bzsReloadMainframeRefresh = function() {
 }
 bzsReloadMainframeRefresh();
 
+var bzsReloadMainIndex = function() {
+    $('#bzs-index-main-header').load('/ #bzs-index-main-header');
+    $('#bzs-index-main-sidebar').load('/ #bzs-index-main-sidebar', function() {
+        $('[data-href]').click(bzsReloadMainframe);
+        return ;
+    });
+    $('#bzs-index-main-footer').load('/ #bzs-index-main-footer');
+    $('#bzs-index-scripts').load('/ #bzs-index-scripts');
+    bzsReloadMainframeRefresh();
+    return ;
+}
+
 /*
  * History actions
  */
@@ -225,6 +237,13 @@ var bzsDialogInputStringLoad = function(title, placeholder, action, uuid, callba
     bzsDialogInputStringLoadCallback_DataUuid = uuid;
     bzsDialogInputStringLoadCallback_Callback = callback;
     return true;
+}
+var bzsDialogTemplateLoad = function(target) {
+    $('#dialog-template-container-content').load(target, function() {
+        $('#dialog-template-container').modal('show');
+        return ;
+    });
+    return ;
 }
 
 /*

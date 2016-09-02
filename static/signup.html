@@ -1,0 +1,48 @@
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+    <h4 class="modal-title">Create bzShare Account</h4>
+</div>
+<div class="modal-body">
+    <form id="dialog-template-form">
+        <div class="form-group has-feedback">
+            <input type="handle" class="form-control" placeholder="User Handle (a-z, 0-9, Length < 32)">
+            <span class="glyphicon glyphicon-user form-control-feedback"></span>
+        </div>
+        <div class="form-group has-feedback">
+            <input type="password" class="form-control" placeholder="Password (Letters, digits, regular symbols)">
+            <span class="glyphicon glyphicon-lock form-control-feedback"></span>
+        </div>
+        <div class="form-group has-feedback">
+            <input type="username" class="form-control" placeholder="Account name (Unicode)">
+            <span class="glyphicon glyphicon-tag form-control-feedback"></span>
+        </div>
+        <div class="form-group has-feedback">
+            <input type="description" class="form-control" placeholder="User description (Unicode)">
+            <span class="glyphicon glyphicon-tags form-control-feedback"></span>
+        </div>
+        <div class="form-group has-feedback">
+            <input type="description" class="form-control" placeholder="Invitation Code (8 digits)">
+            <span class="glyphicon glyphicon-share form-control-feedback"></span>
+        </div>
+        <div class="row"><div class="col-xs-12">
+            <button type="submit" class="btn btn-primary btn-block">
+                Create Account
+            </button>
+        </div></div>
+    </form>
+    <p><div class="row"><div class="col-xs-12">
+        <button class="btn btn-primary btn-block" onclick="javascript:bzsDialogTemplateLoad('/user/login')">
+            Login to bzShare with existing account
+        </button>
+    </div></div></p>
+</div>
+
+<script>
+
+$('#dialog-template-form').submit(function(event) {
+    event.preventDefault();
+    $('#dialog-template-container').modal('hide');
+    return ;
+});
+
+</script>

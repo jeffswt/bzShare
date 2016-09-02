@@ -83,8 +83,7 @@
                         <tr>
                             <th>Filename</th>
                             <th selective-hidden="small-phones">File Size</th>
-                            <th selective-hidden="phones">Owner</th>
-                            <th selective-hidden="tablets">MIME Type</th>
+                            <th selective-hidden="tablets">Owner</th>
                             <th selective-hidden="phones">Date Uploaded</th>
                         </tr>
                         </thead>
@@ -118,13 +117,8 @@
                                 ${attrib['size-str']}
                                 % endif
                             </td>
-                            <td selective-hidden="phones">
-                                ${attrib['owners']}
-                            </td>
                             <td selective-hidden="tablets">
-                                % if attrib['mime-type'] != 'directory/folder':
-                                ${attrib['mime-type']}
-                                % endif
+                                ${attrib['owners']}
                             </td>
                             <td selective-hidden="phones">
                                 % if attrib['mime-type'] != 'directory/folder':
@@ -354,7 +348,6 @@ var bzsFilesMarkPaste = function() {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 var bzsFilesUploadDisplay = $('#files-upload-display'),
     $prog=$(null),

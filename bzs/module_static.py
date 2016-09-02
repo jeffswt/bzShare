@@ -35,7 +35,7 @@ class StaticHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', utils.guess_mime_type(file_path))
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prefent CSRF attacks
+        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_data)

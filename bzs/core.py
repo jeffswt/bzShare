@@ -20,6 +20,7 @@ from . import module_files
 from . import module_home
 from . import module_index
 from . import module_static
+from . import module_user
 
 WEB_PORT = 80
 
@@ -28,19 +29,20 @@ def main():
     # Creating web application
     web_app = tornado.web.Application([
             (r'^/$', module_index.MainframeHandler),
-            # (r'/static/(.*)$', module_static.StaticHandler),
-            (r'/static/(.*)', tornado.web.StaticFileHandler, {
-                "path": "./static/" # Optimized static file handler with cache
-            }),
+            (r'/static/(.*)$', module_static.StaticHandler),
+            # (r'/static/(.*)', tornado.web.StaticFileHandler, {
+            #     "path": "./static/" # Optimized static file handler with cache
+            # }),
             (r'^/home', module_home.HomeHandler),
             (r'^/files/?()$', module_files.FilesListHandler),
             (r'^/files/list/(.*)', module_files.FilesListHandler),
             (r'^/files/download/(.*)/(.*)/?$', module_files.FilesDownloadHandler),
             (r'^/files/upload/(.*)/(.*)$', module_files.FilesUploadHandler),
             (r'^/files/operation/?', module_files.FilesOperationHandler),
+            (r'^/user/(.*)$', module_user.UserActivityHandler),
             (r'.*', module_error404.Error404Handler)
         ],
-        xsrf_cookies=False # True to prevent CSRF third party attacks
+        xsrf_cookies=True # True to prevent CSRF third party attacks
     )
     # Starting server
     web_sockets = tornado.netutil.bind_sockets(

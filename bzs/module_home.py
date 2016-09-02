@@ -3,7 +3,6 @@ import re
 import tornado
 
 from . import const
-from . import preproc
 from . import users
 from . import utils
 
@@ -20,7 +19,7 @@ class HomeHandler(tornado.web.RequestHandler):
                 file_data = utils.get_static_data('./static/home.html')
                 working_user = users.get_user_by_cookie(
                     self.get_cookie('user_active_login', default=''))
-                file_data = preproc.preprocess_webpage(file_data, working_user)
+                file_data = utils.preprocess_webpage(file_data, working_user)
                 future.set_result(file_data)
             tornado.ioloop.IOLoop.instance().add_callback(get_index_html_async)
             file_data = yield future
@@ -35,7 +34,7 @@ class HomeHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prefent CSRF attacks
+        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_data)

@@ -11,7 +11,6 @@ import urllib
 
 from . import const
 from . import sqlfs
-from . import preproc
 from . import users
 from . import utils
 
@@ -97,7 +96,7 @@ class FilesListHandler(tornado.web.RequestHandler):
             cwd_uuid = encode_str_to_hexed_b64(files_hierarchy_cwd)
 
             # File actually exists, sending data
-            file_temp = preproc.preprocess_webpage(file_temp, working_user,
+            file_temp = utils.preprocess_webpage(file_temp, working_user,
                 files_attrib_list=files_attrib_list,
                 files_hierarchy_list=files_hierarchy_list,
                 cwd_uuid=cwd_uuid)
@@ -111,7 +110,7 @@ class FilesListHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_temp)))
-        self.xsrf_form_html() # Prefent CSRF attacks
+        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_temp)
@@ -168,7 +167,7 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'application/x-download')
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prefent CSRF attacks
+        self.xsrf_form_html() # Prevent CSRF attacks
 
         while file_stream.tell() < len(file_data):
             byte_pos = file_stream.tell()
@@ -257,7 +256,7 @@ class FilesOperationHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_temp)))
-        self.xsrf_form_html() # Prefent CSRF attacks
+        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_temp)
@@ -298,7 +297,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(response_temp)))
-        self.xsrf_form_html() # Prefent CSRF attacks
+        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(response_temp)

@@ -1,0 +1,51 @@
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+    <h4 class="modal-title">Sign in to bzShare</h4>
+</div>
+<div class="modal-body">
+    <form id="dialog-template-form" method="POST" action="/">
+        <div class="form-group has-feedback">
+            <input name="handle" class="form-control" placeholder="User Handle">
+            <span class="glyphicon glyphicon-user form-control-feedback"></span>
+        </div>
+        <div class="form-group has-feedback">
+            <input name="password" type="password" class="form-control" placeholder="Password">
+            <span class="glyphicon glyphicon-lock form-control-feedback"></span>
+        </div>
+        <div class="row"><div class="col-xs-12">
+            <button type="submit" class="btn btn-primary btn-block">
+                Sign In
+            </button>
+        </div></div>
+    </form>
+    <p><div class="row"><div class="col-xs-12">
+        <button class="btn btn-primary btn-block" onclick="javascript:bzsDialogTemplateLoad('/user/signup')">
+            Register bzShare Handle
+        </button>
+    </div></div></p>
+</div>
+
+<script>
+var glob = 0;
+$('#dialog-template-form').off('submit')
+$('#dialog-template-form').submit(function(event) {
+    event.preventDefault();
+    var form_data = {};
+    var form_source = $(this).serializeArray();
+    for (var i = 0; i < form_source.length; i++)
+        form_data[form_source[i]['name']] = form_source[i]['value']
+    console.log(form_source['handle'], form_source['password'])
+    $.ajax({
+        method: 'POST',
+        url: '/user/operation_login',
+        data: JSON.stringify(form_data),
+        dataType: "json",
+        complete: function(data) {
+            event.preventDefault();
+            $('#dialog-template-container-content').html(data.responseText)
+            bzsReloadMainIndex();
+            return ;
+        }
+    });
+});
+</script>
