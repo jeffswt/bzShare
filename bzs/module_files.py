@@ -69,7 +69,8 @@ class FilesListHandler(tornado.web.RequestHandler):
                     attrib['file-name-escaped'] = cgi.escape(file_name)
                     attrib['size'] = f_handle['file-size']
                     attrib['size-str'] = utils.format_file_size(attrib['size'])
-                    attrib['date-uploaded'] = time.strftime(const.get_const('time-format'), time.localtime(f_handle['upload-time']))
+                    attrib['date-uploaded'] = f_handle['upload-time']
+                    attrib['date-uploaded-str'] = time.strftime(const.get_const('time-format'), time.localtime(attrib['date-uploaded']))
                     # Permissions
                     attrib['writable'] = f_handle['writable']
                     # Encoding owners

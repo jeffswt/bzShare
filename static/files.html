@@ -124,7 +124,7 @@
                                 </span>
                                 </div>
                             </td>
-                            <td selective-hidden="small-phones">
+                            <td selective-hidden="small-phones" data-order="${attrib['size']}">
                                 % if attrib['mime-type'] != 'directory/folder':
                                 ${attrib['size-str']}
                                 % endif
@@ -132,10 +132,8 @@
                             <td selective-hidden="tablets">
                                 ${attrib['owners']}
                             </td>
-                            <td selective-hidden="phones">
-                                % if attrib['mime-type'] != 'directory/folder':
-                                ${attrib['date-uploaded']}
-                                % endif
+                            <td selective-hidden="phones" data-order="${attrib['date-uploaded']}">
+                                ${attrib['date-uploaded-str']}
                             </td>
                         </tr>
                         % endfor
