@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+w<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -141,13 +141,44 @@
                     </a>
                 </li>
 
-                <li>
-                    <a href="#" data-href="/files">
+                <li class="treeview">
+                    <a href="">
                         <div class="ion ion-folder"></div>
                         <span>Files</span>
                         <span class="pull-right-container">
+                            <i class="fa fa-angle-right pull-left"></i>
                         </span>
                     </a>
+                    <ul class="treeview-menu">
+                        % if user_is_standard_user:
+                        <li>
+                            <a href="#" data-href="/files/list/${bzs_index_files_personal}">
+                                <i class="fa fa-circle-o"></i>
+                                Personal Files
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-href="/files/list/${bzs_index_files_groups}">
+                                <i class="fa fa-circle-o"></i>
+                                Group Files
+                            </a>
+                        </li>
+                        % endif
+                        <li>
+                            <a href="#" data-href="/files/list/${bzs_index_files_public}">
+                                <i class="fa fa-circle-o"></i>
+                                Public Files
+                            </a>
+                        </li>
+                        % if user_is_administrator:
+                        <li>
+                            <a href="#" data-href="/files/">
+                                <i class="fa fa-circle-o"></i>
+                                Browse SQLFS Root
+                            </a>
+                        </li>
+                        % endif
+                    </ul>
                 </li>
 
                 % if user_is_standard_user:
@@ -294,6 +325,7 @@
 <!-- Input dialog -->
 <div class="modal fade" id="dialog-input-string-container" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <form id="dialog-input-string-form" method="" action="">
+        ${xsrf_form_html}
         <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
             <h4 class="modal-title" id="dialog-input-string-header">Enter text</h4>

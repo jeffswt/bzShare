@@ -31,7 +31,7 @@ class FilesystemPermissions:
     def __accessible(self, node, user, mode):
         """Wrapping function for determining a single attribute."""
         # Kernel has ultimate access to files
-        if user in ['kernel', 'root']:
+        if user.handle in {'kernel'}:
             return True
         # Otherwise normal users
         grp = 'owner' if self.__is_owner(user, node.owners) else 'other'

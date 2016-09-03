@@ -1,6 +1,4 @@
 
-import base64
-import binascii
 import cgi
 import io
 import json
@@ -13,11 +11,6 @@ from . import const
 from . import sqlfs
 from . import users
 from . import utils
-
-def encode_str_to_hexed_b64(data):
-    return binascii.b2a_hex(base64.b64encode(data.encode('utf-8'))).decode('utf-8')
-def decode_hexed_b64_to_str(data):
-    return base64.b64decode(binascii.unhexlify(data.encode('utf-8'))).decode('utf-8')
 
 ################################################################################
 
@@ -39,7 +32,7 @@ class FilesListHandler(tornado.web.RequestHandler):
 
             # Retrieving list operation target.
             try:
-                target_path = decode_hexed_b64_to_str(target_path)
+                target_path = utils.decode_hexed_b64_to_str(target_path)
             except:
                 target_path = '/'
             if not target_path:
@@ -57,9 +50,12 @@ class FilesListHandler(tornado.web.RequestHandler):
                 files_hierarchy_cwd += files_hierarchy[i]
                 files_hierarchy_list.append(dict(
                     folder_name=files_hierarchy[i],
-                    href_path='/files/list/%s' % encode_str_to_hexed_b64(files_hierarchy_cwd),
+                    href_path='/files/list/%s' % utils.encode_str_to_hexed_b64(files_hierarchy_cwd),
                     disabled=(i == len(files_hierarchy) - 1)))
                 continue
+
+            # Getting current directory permissions
+            cwd_writable = sqlfs.writable(target_path, working_user)
 
             # Getting current directory content
             files_attrib_list = list()
@@ -74,6 +70,8 @@ class FilesListHandler(tornado.web.RequestHandler):
                     attrib['size'] = f_handle['file-size']
                     attrib['size-str'] = utils.format_file_size(attrib['size'])
                     attrib['date-uploaded'] = time.strftime(const.get_const('time-format'), time.localtime(f_handle['upload-time']))
+                    # Permissions
+                    attrib['writable'] = f_handle['writable']
                     # Encoding owners
                     attrib['owners'] = list()
                     for ownr in f_handle['owners']:
@@ -86,20 +84,22 @@ class FilesListHandler(tornado.web.RequestHandler):
                         attrib['mime-type'] = utils.guess_mime_type(file_name)
                     # Encoding hyperlinks
                     if attrib['mime-type'] == 'directory/folder':
-                        attrib['target-link'] = '/files/list/%s' % encode_str_to_hexed_b64(actual_path + '/')
+                        attrib['target-link'] = '/files/list/%s' % utils.encode_str_to_hexed_b64(actual_path + '/')
                     else:
-                        attrib['target-link'] = '/files/download/%s/%s' % (encode_str_to_hexed_b64(actual_path), attrib['file-name-url'])
-                    attrib['uuid'] = encode_str_to_hexed_b64(actual_path)
+                        attrib['target-link'] = '/files/download/%s/%s' % (utils.encode_str_to_hexed_b64(actual_path), attrib['file-name-url'])
+                    attrib['uuid'] = utils.encode_str_to_hexed_b64(actual_path)
                     files_attrib_list.append(attrib)
                 except Exception:
                     pass
-            cwd_uuid = encode_str_to_hexed_b64(files_hierarchy_cwd)
+            cwd_uuid = utils.encode_str_to_hexed_b64(files_hierarchy_cwd)
 
             # File actually exists, sending data
             file_temp = utils.preprocess_webpage(file_temp, working_user,
                 files_attrib_list=files_attrib_list,
                 files_hierarchy_list=files_hierarchy_list,
-                cwd_uuid=cwd_uuid)
+                cwd_uuid=cwd_uuid,
+                cwd_writable=cwd_writable,
+                xsrf_form_html=self.xsrf_form_html())
             future.set_result(file_temp)
         tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async,
             target_path)
@@ -141,7 +141,7 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
 
         # Get file location (exactly...)
         try:
-            file_path = decode_hexed_b64_to_str(file_path)
+            file_path = utils.decode_hexed_b64_to_str(file_path)
         except Exception:
             file_path = ''
         if not file_path:
@@ -217,14 +217,14 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             if type(sources) == list:
                 for i in range(0, len(sources)):
                     try:
-                        sources[i] = decode_hexed_b64_to_str(sources[i])
+                        sources[i] = utils.decode_hexed_b64_to_str(sources[i])
                     except:
                         pass
             else:
-                sources = decode_hexed_b64_to_str(sources)
+                sources = utils.decode_hexed_b64_to_str(sources)
             if action in ['copy', 'move']:
                 try:
-                    target = decode_hexed_b64_to_str(operation_content['target'])
+                    target = utils.decode_hexed_b64_to_str(operation_content['target'])
                 except:
                     target = '/'
             elif action in ['rename', 'new-folder']:
@@ -283,7 +283,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
             upload_data = alter_ego.request.body
             # Crucial, to release data.
             alter_ego.request.body = None
-            target_path = decode_hexed_b64_to_str(target_path)
+            target_path = utils.decode_hexed_b64_to_str(target_path)
             # Committing changes to database
             sqlfs.create_file(target_path, file_name, upload_data, user=working_user)
             # Final return
@@ -297,7 +297,6 @@ class FilesUploadHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(response_temp)))
-        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(response_temp)

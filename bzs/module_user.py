@@ -13,7 +13,6 @@ class UserActivityHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     @tornado.gen.coroutine
     def get(self, action_type):
-        # In case it does not exist.
         working_user = users.get_user_by_cookie(
             self.get_cookie('user_active_login', default=''))
 
@@ -27,7 +26,9 @@ class UserActivityHandler(tornado.web.RequestHandler):
                 pass
             else:
                 file_data = ''
-            file_data = utils.preprocess_webpage(file_data, working_user)
+            file_data = utils.preprocess_webpage(file_data, working_user,
+                xsrf_form_html=self.xsrf_form_html()
+            )
             future.set_result(file_data)
         tornado.ioloop.IOLoop.instance().add_callback(
             get_index_html_async, working_user, action_type)
@@ -39,7 +40,6 @@ class UserActivityHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_data)
@@ -54,29 +54,47 @@ class UserActivityHandler(tornado.web.RequestHandler):
             self.get_cookie('user_active_login', default=''))
 
         if action_type == 'operation_login':
-            inp_json = json.loads(self.request.body.decode('utf-8', 'ignore'))
-            try: n_cookie = users.login_user(
-                inp_json['handle'], inp_json['password'])
-            except: n_cookie = None
-            if not n_cookie:
-                file_data = utils.get_static_data('./static/login_failure.html')
-            else:
+            try:
+                inp_json = json.loads(self.request.body.decode('utf-8', 'ignore'))
+                n_cookie = users.login_user(inp_json['handle'], inp_json['password'])
                 self.set_cookie('user_active_login', n_cookie)
-                file_data = utils.get_static_data('./static/login_success.html')
                 working_user = users.get_user_by_cookie(n_cookie)
-                print(working_user.handle)
+                file_data = utils.get_static_data('./static/login_success.html')
+                file_data = utils.preprocess_webpage(file_data, working_user,
+                    xsrf_form_html=self.xsrf_form_html()
+                )
+            except Exception as err:
+                n_cookie = None
+                err_data = str(err)
+                file_data = utils.get_static_data('./static/login_failure.html')
+                file_data = utils.preprocess_webpage(file_data, working_user,
+                    xsrf_form_html=self.xsrf_form_html(),
+                    err_data=err_data
+                )
             pass
         elif action_type == 'operation_logout':
-            working_user.logout()
-            self.set_cookies('user_active_login', '')
+            users.logout_user(working_user.handle)
+            self.set_cookie('user_active_login', '')
+            file_data = ''
             pass
         elif action_type == 'operation_signup':
-            inp_json = json.loads(self.request.body.decode('utf-8', 'ignore'))
-            # file_data = utils.get_static_data('./static/signup_success.html')
+            try:
+                inp_json = json.loads(self.request.body.decode('utf-8', 'ignore'))
+                users.create_user(inp_json)
+                file_data = utils.get_static_data('./static/signup_success.html')
+                file_data = utils.preprocess_webpage(file_data, working_user,
+                    xsrf_form_html=self.xsrf_form_html()
+                )
+            except Exception as err:
+                err_data = str(err)
+                file_data = utils.get_static_data('./static/signup_failure.html')
+                file_data = utils.preprocess_webpage(file_data, working_user,
+                    xsrf_form_html=self.xsrf_form_html(),
+                    err_data = err_data
+                )
             pass
         else:
             raise tornado.web.HTTPError(404)
-        file_data = utils.preprocess_webpage(file_data, working_user)
 
         # File actually exists, sending data
         self.set_status(200, "OK")
@@ -84,7 +102,6 @@ class UserActivityHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_data)

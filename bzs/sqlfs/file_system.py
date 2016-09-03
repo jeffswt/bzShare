@@ -77,8 +77,8 @@ class Filesystem:
             self.sub_names_idx = dict()
             return
 
-        def chown(self, owner):
-            self.owner = owner
+        def chown(self, owners):
+            self.owners = owners
             return True
 
         def chmod(self, perm):
@@ -628,6 +628,7 @@ class Filesystem:
             for i_sub in item_.sub_items:
                 _rec_work(i_sub)
             result = result and self.__chmod(item_, perm_)
+        _rec_work(item, perm)
         return result
 
     def __shell(self):
@@ -779,7 +780,7 @@ class Filesystem:
             directory.
         In 'write' mode, sub_files would not be writable if and only if it
             itself is not writable or its parent does not allow its writing."""
-        if recursive:
+        if not recursive:
             ret_result = self.__chmod(path, permissions)
         else:
             ret_result = self.__chmod_recursive(path, permissions)

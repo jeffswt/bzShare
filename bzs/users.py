@@ -6,6 +6,7 @@ import base64
 from . import const
 from . import db
 from . import utils
+from . import sqlfs
 
 class UserManagerType:
     class User:
@@ -30,6 +31,8 @@ class UserManagerType:
             # These are a great amount of social linkages.
             self.followers       = []
             self.friends         = []
+            # Whether the user is banned.
+            self.banned          = False
             # Specify data indefinitely or load from pickle pls.
             return
         def save_data(self):
@@ -42,12 +45,10 @@ class UserManagerType:
         def login(self):
             if not self.cookie:
                 self.cookie = utils.get_new_cookie(self.master.users_cookies)
-                self.master.users_cookies[self.cookie] = self.handle
                 self.save_data()
             return self.cookie
         def logout(self):
             if self.cookie:
-                del self.master.users_cookies[self.cookie]
                 self.cookie = None
                 self.save_data()
             return
@@ -113,19 +114,92 @@ class UserManagerType:
             self.usr_db.execute("UPDATE core SET data = %s WHERE index = %s;", ('usg_raw', 'usergroups'))
         return
 
+    def ban_user(self, handle, reason=''):
+        usr = self.get_user_by_name(handle)
+        if usr.handle == 'guest':
+            return
+        usr.banned = reason
+        return
+
+    def unban_user(self, handle):
+        usr = self.get_user_by_name(handle)
+        if usr.handle == 'guest':
+            return
+        usr.banned = False
+        return
+
     def login_user(self, handle, password):
         usr = self.get_user_by_name(handle)
         if usr.handle == 'guest':
-            return None
+            raise Exception('Username or password incorrect.')
         if usr.password != password:
-            return None
-        return usr.login()
+            raise Exception('Username or password incorrect.')
+        if usr.banned != False:
+            raise Exception('Access to the user had been banned by the server administrator, reason: "%s". Contact the server administrator to restore your account.' % user.banned)
+        usr_cookie = usr.login()
+        self.users_cookies[usr_cookie] = usr.handle
+        return usr_cookie
 
     def logout_user(self, handle):
         usr = self.get_user_by_name(handle)
         if usr.handle == 'guest':
             return
+        if usr.cookie in self.users_cookies:
+            del self.users_cookies[usr.cookie]
         return usr.logout()
+
+    def create_user(self, json_data):
+        try:
+            usr_invitecode = json_data['invitecode']
+            usr_handle = json_data['handle']
+            usr_password = json_data['password']
+            usr_password_recheck = json_data['passwordretype']
+            usr_name = json_data['username']
+            usr_desc = json_data['description']
+        except:
+            raise Exception('You have attempted to upload an incomplete form.')
+        for i in [usr_invitecode, usr_handle, usr_password, usr_password_recheck, usr_name, usr_desc]:
+            if type(i) != str:
+                raise Exception('You have attempted to make an unsuccessful JSON exploit.')
+        if usr_invitecode != const.get_const('users-invite-code'):
+            raise Exception('Erroneous invitation code given, you are not authorized to access this functionality.')
+        # Checking handle validity
+        if not utils.is_safe_string(usr_handle, 'letters_alpha', 'numbers'):
+            raise Exception('User handle must be composed of non-capital letters and digits only.')
+        if len(usr_handle) > 32:
+            raise Exception('User handle must be no longer than 32 characters.')
+        # Checking password validity
+        if not utils.is_safe_string(usr_password, 'letters', 'numbers', 'symbols'):
+            raise Exception('Password must be composed of keys that can be retrieved directly from a QWERTY keyboard.')
+        if len(usr_password) > 64 or len(usr_password) < 6:
+            raise Exception('Password does not meet required length (6 letters to 64 letters)')
+        if usr_password != usr_password_recheck:
+            raise Exception('The two passwords you have typed in does not match.')
+        # Checking user name validity
+        if utils.is_unsafe_string(usr_name, 'html_escape'):
+            raise Exception('Your name should not contain HTML escape characters.')
+        if len(usr_name) > 32:
+            raise Exception('Your name should not exceed 32 characters.')
+        # Checking description validity.
+        if utils.is_unsafe_string(usr_desc, 'html_escape'):
+            raise Exception('Your user description should not contain HTML escape characters.')
+        if len(usr_desc) > 128:
+            raise Exception('Your user description should not exceed 128 characters.')
+        # Creating user account
+        usr = self.User(
+            handle=usr_handle,
+            password=usr_password,
+            usr_name=usr_name,
+            usr_description=usr_desc,
+            master=self
+        )
+        usr.save_data()
+        self.add_user(usr)
+        # After creating account, assign folders for him.
+        sqlfs.create_directory('/Users/', usr_handle)
+        sqlfs.change_ownership('/Users/%s/' % usr_handle, {usr_handle})
+        sqlfs.change_permissions('/Users/%s/' % usr_handle, 'rwx--x')
+        return True
 
     def get_user_by_name(self, name):
         if name in self.users:
@@ -159,11 +233,20 @@ def add_user(user):
 def add_usergroup(usergroup, usergroup_name):
     return UserManager.add_usergroup(usergroup, usergroup_name)
 
+def ban_user(handle, reason=''):
+    return UserManager.ban_user(handle, reason)
+
+def unban_user(handle):
+    return UserManager.unban_user(handle)
+
 def login_user(handle, password):
     return UserManager.login_user(handle, password)
 
 def logout_user(handle):
     return UserManager.logout_user(handle)
+
+def create_user(json_data):
+    return UserManager.create_user(json_data)
 
 def get_user_by_name(name):
     return UserManager.get_user_by_name(name)

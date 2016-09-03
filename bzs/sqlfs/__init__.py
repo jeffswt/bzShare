@@ -31,17 +31,21 @@ def create_file(path_parent, file_name, content, user=None):
     """Inject object into filesystem, while passing in content. The content
     itself would be indexed in FileStorage. If 'path-parent' is not writable,
     then the creation would be denied."""
-    if not user or not FilesystemPermissions.writable(path_parent, user):
+    if user and not FilesystemPermissions.writable(path_parent, user):
         return False
-    ret_result = Filesystem.create_file(path_parent, file_name, {user.handle}, content)
+    if user: usr_handle = user.handle
+    else: usr_handle = 'public'
+    ret_result = Filesystem.create_file(path_parent, file_name, {usr_handle}, content)
     return ret_result
 
 def create_directory(path_parent, file_name, user=None):
     """Create directory under path_parent into filesystem. If 'path-parent' is
     not writable, then the creation would be denied."""
-    if not user or not FilesystemPermissions.writable(path_parent, user):
+    if user and not FilesystemPermissions.writable(path_parent, user):
         return False
-    ret_result = Filesystem.create_directory(path_parent, file_name, {user.handle})
+    if user: usr_handle = user.handle
+    else: usr_handle = 'public'
+    ret_result = Filesystem.create_directory(path_parent, file_name, {usr_handle})
     return ret_result
 
 def copy(source, target_parent, user=None):
@@ -124,21 +128,36 @@ def list_directory(path, user=None):
         is-dir      - Whether is directory
         owners      - The handles of the owners
         upload-time - Time uploaded, in float since epoch.
+        writable    - Whether the user has write access to this object.
 
     The result should always be a list, and please index it with your own
     habits or modify the code."""
     fil_ls = Filesystem.list_directory(path)
     ret_result = list()
     for item in fil_ls:
-        if user and not FilesystemPermissions.readable(item['file-name'], user, path):
+        if user and not FilesystemPermissions.readable(item['file-name'], user, parent=path):
             continue
+        if user:
+            item['writable'] = FilesystemPermissions.writable(item['file-name'], user, parent=path)
         ret_result.append(item)
     return ret_result
 
-def get_content(path):
+def get_content(path, user):
     """Gets binary content of the object (must be file) and returns the
     actual content in bytes."""
     if user and not FilesystemPermissions.readable(path):
         return b''
     ret_result = Filesystem.get_content(path)
     return ret_result
+
+def readable(path, user):
+    """Whether the user has read access to this file."""
+    if user and not FilesystemPermissions.readable(path, user):
+        return False
+    return True
+
+def writable(path, user):
+    """Whether the user has write access to this file."""
+    if user and not FilesystemPermissions.writable(path, user):
+        return False
+    return True

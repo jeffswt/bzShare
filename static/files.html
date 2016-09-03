@@ -27,8 +27,13 @@
                 <div class="box-header">
                     <div class="btn-group">
                         <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCheckmarkToggleAll()"><span class="ion ion-toggle-filled" style="font-size:16px"></span></button>
+                        % if cwd_writable:
                         <button class="btn btn-primary" type="button" onclick="javascript:$('#files-upload-uploader-hidden').click();"><span class="ion ion-arrow-up-a" style="font-size:16px"></span></button>
                         <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCreateFolder()"><span class="ion ion-folder" style="font-size:16px"></span></button>
+                        % else:
+                        <button class="btn btn-primary" type="button" disabled="true"><span class="ion ion-arrow-up-a" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" disabled="true"><span class="ion ion-folder" style="font-size:16px"></span></button>
+                        % endif
                         <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkCopy()" id="files-checkmark-copy"><span class="ion ion-social-buffer" style="font-size:16px"></span></button>
                         <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkMove()" id="files-checkmark-move"><span class="ion ion-scissors" style="font-size:16px"></span></button>
                         <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkDelete()" id="files-checkmark-delete"><span class="ion ion-trash-a" style="font-size:16px"></span></button>
@@ -103,12 +108,19 @@
                                 % endif
                                 </span>
                                 <span style="float:right">
+                                % if not attrib['writable']:
+                                    <span class="glyphicon glyphicon-lock" style="color: #888888; padding-right: 10px;"></span>
+                                % endif
                                 <div class="btn-group">
                                     % if attrib['mime-type'] != 'directory/folder':
                                     <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'" target="_blank"><div class="ion ion-arrow-down-a"></div></button>
                                     % endif
-                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)" ${'disabled="true"' if not attrib["target-link"] else ''}><div class="ion ion-edit"></div></button>
-                                    <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}"><div class="ion ion-checkmark-round"></div></button>
+                                    % if attrib['writable']:
+                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)"><div class="ion ion-edit"></div></button>
+                                    % else:
+                                    <button class="btn btn-default" type="button" disabled="true"><div class="ion ion-edit"></div></button>
+                                    % endif
+                                    <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}" ${'' if attrib['writable'] else 'data-files-non-writable="true"'}><div class="ion ion-checkmark-round"></div></button>
                                 </span>
                                 </div>
                             </td>
@@ -146,6 +158,8 @@
 <!-- Postload scripts -->
 <script>
 
+////////////////////////////////////////////////////////////////////////////////
+
 $('#table-files-list').DataTable({
     "paging": false,
     "lengthChange": false,
@@ -155,6 +169,7 @@ $('#table-files-list').DataTable({
     "autoWidth": true
 });
 $('#table-files-list_filter').attr('style', 'float:right');
+var cwd_writable = ${'true' if cwd_writable else 'false'};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -188,13 +203,22 @@ var bzsFilesCheckmarkUncheckAll = function() {
 
 var bzsFilesMarkResetButtons = function() {
     var arr = $('[data-files-checkmark-name]' + '.btn-info');
-    // According to selections
+    // According to selections (readable)
     if (arr.length > 0) {
         $('#files-checkmark-copy').removeAttr('disabled');
         $('#files-checkmark-move').removeAttr('disabled');
         $('#files-checkmark-delete').removeAttr('disabled');
     } else {
         $('#files-checkmark-copy').attr('disabled', 'disabled');
+        $('#files-checkmark-move').attr('disabled', 'disabled');
+        $('#files-checkmark-delete').attr('disabled', 'disabled');
+    }
+    // Those which are really writable
+    var arr2 = $('[data-files-checkmark-name]' + '[data-files-non-writable]' + '.btn-info');
+    if (arr.length > 0 && arr2.length <= 0) {
+        $('#files-checkmark-move').removeAttr('disabled');
+        $('#files-checkmark-delete').removeAttr('disabled');
+    } else {
         $('#files-checkmark-move').attr('disabled', 'disabled');
         $('#files-checkmark-delete').attr('disabled', 'disabled');
     }
@@ -396,6 +420,8 @@ bzsFilesUploadDragTarget
     // At cursor / dragging objects' entrance
     .on('dragenter', function() {
         bzsFilesUploadDragStatus++;
+        if (!cwd_writable)
+            return ; // CWD is not accessible writewise
         // Begin transition display.
         if(bzsFilesUploadDragStatus === 1)
             $('body').addClass('files-upload-transition')
@@ -405,6 +431,8 @@ bzsFilesUploadDragTarget
     // At the leaving of objects
     .on('dragleave', function() {
         bzsFilesUploadDragStatus--;
+        if (!cwd_writable)
+            return ; // CWD is not accessible writewise
         // Terminate transition display and do nothing.
         if(bzsFilesUploadDragStatus === 0) {
             $('body').removeClass('files-upload-dragging');
@@ -417,12 +445,16 @@ bzsFilesUploadDragTarget
     // Just when things are hanging around
     .on('dragover', function(event) {
         event.preventDefault();
+        if (!cwd_writable)
+            return ; // CWD is not accessible writewise
         // Dragging things over does not trigger anything.
         return ;
     })
     // The things are released hither
     .on('drop',function(event) {
         event.preventDefault();
+        if (!cwd_writable)
+            return ; // CWD is not accessible writewise
         if (bzsFilesUploadDragWorking)
             return ;
         bzsFilesUploadDragWorking = true;
@@ -492,7 +524,7 @@ var bzsFilesUploadWork = function() {
         return ;
     }
     var failedCallback = function() {
-        // if(confirm('上传失败，是否重试？'))
+        // if(confirm('Upload failed, retry?'))
         //     upload_content();
         // else
         //     location.reload();
@@ -518,6 +550,7 @@ var bzsFilesUploadWork = function() {
         form_data = new FormData();
     form_data.append("upfile", file);
     form_data.append("filename", file.name);
+    form_data.append("_xsrf", getCookie("_xsrf"));
     xml_request.upload.addEventListener("progress", progressCallback, false);
     xml_request.addEventListener("load", completeCallback, false);
     xml_request.addEventListener("error", failedCallback, false);

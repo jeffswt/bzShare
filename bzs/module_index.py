@@ -22,7 +22,11 @@ class MainframeHandler(tornado.web.RequestHandler):
                 file_data = utils.get_static_data('./static/index.html')
                 logged_in = working_user.handle != 'guest'
                 file_data = utils.preprocess_webpage(file_data, working_user,
-                    login_status=logged_in
+                    login_status=logged_in,
+                    bzs_index_files_personal=utils.encode_str_to_hexed_b64('/Users/%s/' % working_user.handle),
+                    bzs_index_files_public=utils.encode_str_to_hexed_b64('/Public/'),
+                    bzs_index_files_groups=utils.encode_str_to_hexed_b64('/Groups/'),
+                    xsrf_form_html=self.xsrf_form_html()
                 )
                 future.set_result(file_data)
             tornado.ioloop.IOLoop.instance().add_callback(
@@ -41,7 +45,6 @@ class MainframeHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_data)

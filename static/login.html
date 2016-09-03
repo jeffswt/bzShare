@@ -4,6 +4,7 @@
 </div>
 <div class="modal-body">
     <form id="dialog-template-form" method="POST" action="/">
+        ${xsrf_form_html}
         <div class="form-group has-feedback">
             <input name="handle" class="form-control" placeholder="User Handle">
             <span class="glyphicon glyphicon-user form-control-feedback"></span>
@@ -26,7 +27,6 @@
 </div>
 
 <script>
-var glob = 0;
 $('#dialog-template-form').off('submit')
 $('#dialog-template-form').submit(function(event) {
     event.preventDefault();
@@ -34,7 +34,6 @@ $('#dialog-template-form').submit(function(event) {
     var form_source = $(this).serializeArray();
     for (var i = 0; i < form_source.length; i++)
         form_data[form_source[i]['name']] = form_source[i]['value']
-    console.log(form_source['handle'], form_source['password'])
     $.ajax({
         method: 'POST',
         url: '/user/operation_login',

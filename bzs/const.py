@@ -29,6 +29,7 @@ universal_options_list = {
     'server-threads': 1,
     'time-format': '%a %Y/%m/%d, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
+    'users-invite-code': '571428',
     'version': 'r0.24'
 }
 
