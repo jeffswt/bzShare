@@ -77,6 +77,22 @@ class Filesystem:
             self.sub_names_idx = dict()
             return
 
+        def duplicate(self):
+            """Create duplicate (mutation-invulnerable) of this node with
+            a different UUID."""
+            n_fl = self.master.fsNode(self.is_dir, self.file_name, self.owners,
+                master=self.master)
+            n_fl.permissions = copy.copy(self.permissions)
+            # n_fl.uuid = None # Disabled due to new UUID necessity
+            n_fl.upload_time = self.upload_time
+            if not n_fl.is_dir: n_fl.f_uuid = self.f_uuid
+            del n_fl.sub_folders
+            del n_fl.sub_files
+            n_fl.parent = self.parent
+            n_fl.sub_items = copy.copy(self.sub_items)
+            n_fl.sub_names_idx = copy.copy(self.sub_names_idx)
+            return n_fl
+
         def chown(self, owners):
             self.owners = owners
             return True
@@ -468,23 +484,29 @@ class Filesystem:
             return b''
         return self.fs_store.get_content(item.f_uuid)
 
-    def __copy_recursive(self, item, target_par, new_owners):
+    def __copy_recursive(self, item, new_owners):
         """Copies content of a single object and recursively call all its
         children for recursive copy, targeted as a child under target_par."""
         # We assert item, target_par are all fsNode().
-        target_node = target_par.sub_names_idx[item.file_name]
+        new_sub_items = set()
+        item.sub_names_idx = dict()
+        # Recursively call tree structure.
         for i_sub in item.sub_items:
-            i_sub.parent = item
-            item.sub_names_idx[i_sub.file_name] = i_sub
-            self.__copy_recursive(i_sub, target_node, new_owners)
+            n_sub = i_sub.duplicate()
+            n_sub.parent = item
+            new_sub_items.add(n_sub)
+            item.sub_names_idx[i_sub.file_name] = n_sub
+            self.__copy_recursive(n_sub, new_owners)
+        item.sub_items = new_sub_items
         # Insert into SQL database
-        item.uuid = self.utils_pkg.get_new_uuid(None, self.fs_uuid_idx)
-        self.fs_uuid_idx[item.uuid] = item
-        item.upload_time = utils.get_current_time()
+        item.upload_time = self.utils_pkg.get_current_time()
         if new_owners:
             item.owners = new_owners # Assignment
+        # These are to maintain tree structures or relations
         if item.is_dir:
             self.__insert_in_db(item)
+        else:
+            self.fs_store.add_unique_file(item.f_uuid)
         return
 
     def __copy(self, source, target_parent, new_owners=None, return_handle=False):
@@ -500,14 +522,13 @@ class Filesystem:
         file_name = self.__make_nice_filename(source.file_name)
         file_name = self.__resolve_conflict(file_name, target_parent)
         # Done assertion, now proceed with deep copy
-        target = copy.deepcopy(source)
-        # Assigning and finishing tree connexions
+        target = source.duplicate()
         target.file_name = file_name
         target.parent = target_parent
         target_parent.sub_items.add(target)
         target_parent.sub_names_idx[target.file_name] = target
-        self.__copy_recursive(target, target_parent, new_owners)
-        # Update target_parent data and return
+        self.__copy_recursive(target, new_owners)
+        # Assigning and finishing tree connexions
         self.__update_in_db(target_parent)
         return True if not return_handle else target
 
@@ -522,6 +543,9 @@ class Filesystem:
             return False if not return_handle else None
         # It should not move itself to itself.
         if source.parent == target_parent:
+            return False if not return_handle else None
+        # Neither should itself move itself to its children
+        if self.__is_child(target_parent, source):
             return False if not return_handle else None
         # Create an environment-friendly file name
         file_name = self.__make_nice_filename(source.file_name)

@@ -2,7 +2,7 @@
 import hashlib
 import io
 import threading
-import uuid
+import uuid as uuid_package
 
 class FileStorage:
     """This is a storage system built for bzs.sqlfs.file_system.Filesystem,
@@ -35,7 +35,7 @@ class FileStorage:
         Do process with caution, and use exported methods only.
         """
 
-        uuid         = uuid.UUID('00000000-0000-0000-0000-000000000000')
+        uuid         = uuid_package.UUID('00000000-0000-0000-0000-000000000000')
         size         = 0
         count        = 0
         hash         = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
@@ -157,6 +157,23 @@ class FileStorage:
         self.st_uuid_idx[n_uuid] = u_fl
         self.st_hash_idx[n_hash] = u_fl
         return n_uuid
+
+    def __add_unique_file(self, uuid):
+        if uuid not in self.st_uuid_idx:
+            return False
+        fl = self.st_uuid_idx[uuid]
+        fl.count += 1
+        if fl.sparse_uuid:
+            self.st_db.execute("""
+                UPDATE file_storage_sparse SET sub_count[%s] = %s WHERE uuid = %s""",
+                (fl.sparse_index, fl.count, fl.sparse_uuid
+            ))
+        else:
+            self.st_db.execute("""
+                UPDATE file_storage SET count = %s WHERE uuid = %s""",
+                (fl.count, fl.uuid
+            ))
+        return True
 
     def __new_unique_file(self, content):
         """Creates a UniqueFile, and returns its UUID."""
@@ -337,21 +354,26 @@ class FileStorage:
 
     """Exported functions that are commonly available."""
 
+    def add_unique_file(self, uuid):
+        """Adds an occurence to this file."""
+        ret_result = self.__add_unique_file(uuid)
+        return ret_result
+
     def new_unique_file(self, content):
         """Creates a UniqueFile, and returns its UUID."""
         ret_result = self.__new_unique_file(content)
         return ret_result
 
-    def remove_unique_file(self, uuid_):
+    def remove_unique_file(self, uuid):
         """Removes a unique file, and if its appearances drop below 1 ( <= 0 ),
         remove the actual coincidence of this file and its content."""
-        ret_result = self.__remove_unique_file(uuid_)
+        ret_result = self.__remove_unique_file(uuid)
         return ret_result
 
-    def get_content(self, uuid_):
+    def get_content(self, uuid):
         """Retrieves content from file storage and returns the content in binary
         bytes. Consumes 1x + 2 MB memory per operation."""
-        ret_result = self.__get_content(uuid_)
+        ret_result = self.__get_content(uuid)
         return ret_result
 
     pass
