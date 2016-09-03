@@ -118,7 +118,7 @@ class FilesystemPermissions:
             sub_items = copy.copy(item.sub_items) # Otherwise would raise KeyError()
             for i_sub in sub_items:
                 _cp_rown(i_sub, user)
-            if not self.__readable(item, user):
+            if not self.readable(item, user):
                 self.fs.remove(item)
         _cp_rown(node, user)
         # Done re-assigning
