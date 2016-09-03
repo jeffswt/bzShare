@@ -78,8 +78,8 @@ def preprocess_webpage(data, content_user, **additional_arguments):
         output_encoding='utf-8').render(
             placeholder_version_number = const.get_const('version'),
             placeholder_copyright_message = const.get_const('copyright'),
-            user_is_administrator = content_user == 'kernel',
-            user_is_standard_user = content_user != 'guest',
+            user_is_administrator = content_user.handle == 'kernel',
+            user_is_standard_user = content_user.handle != 'guest',
             current_user_name = content_user.usr_name,
             current_user_description = content_user.usr_description,
             current_user_followers = len(content_user.followers),

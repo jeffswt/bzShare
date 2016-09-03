@@ -26,6 +26,10 @@ class FilesystemPermissions:
         for grp in user.usergroups:
             if grp in owners:
                 return True
+        if 'guest' in owners:
+            return True
+        if 'public' in owners:
+            return True
         return user.handle in owners
 
     def __accessible(self, node, user, mode):

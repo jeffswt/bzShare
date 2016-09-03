@@ -278,7 +278,7 @@ class Filesystem:
         # Creating items
         itm_root = self.fsNode(True, '', {'kernel'}, permissions='rw-r--', master=self)
         itm_system = self.fsNode(True, 'System', {'kernel'}, permissions='rw---x', master=self)
-        itm_public = self.fsNode(True, 'Public', {'public'}, permissions='rw----', master=self)
+        itm_public = self.fsNode(True, 'Public', {'public'}, permissions='rwxr-x', master=self)
         itm_groups = self.fsNode(True, 'Groups', {'kernel'}, permissions='rw-r-x', master=self)
         itm_users = self.fsNode(True, 'Users', {'kernel'}, permissions='rw-r-x', master=self)
         # Removing extra data and linking
