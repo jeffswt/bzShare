@@ -42,7 +42,7 @@ def main():
             (r'^/user/(.*)$', module_user.UserActivityHandler),
             (r'.*', module_error404.Error404Handler)
         ],
-        xsrf_cookies=True # True to prevent CSRF third party attacks
+        xsrf_cookies=False # True to prevent CSRF third party attacks
     )
     # Starting server
     web_sockets = tornado.netutil.bind_sockets(

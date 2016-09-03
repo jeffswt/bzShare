@@ -90,7 +90,8 @@ class DatabaseType:
                 sub_size    BIGINT[],
                 sub_count   BIGINT[],
                 sub_hash    TEXT[],
-                sub_content BYTEA[]
+                sub_content BYTEA[],
+                unused      BIGINT[]
             );
             CREATE TABLE file_system(
                 uuid        UUID,

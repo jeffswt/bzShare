@@ -145,7 +145,7 @@ def list_directory(path, user=None):
 def get_content(path, user):
     """Gets binary content of the object (must be file) and returns the
     actual content in bytes."""
-    if user and not FilesystemPermissions.readable(path):
+    if user and not FilesystemPermissions.readable(path, user):
         return b''
     ret_result = Filesystem.get_content(path)
     return ret_result

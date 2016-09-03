@@ -86,6 +86,8 @@ class FileStorage:
         # These are small / sparsed files we are talking about.
         for item in self.st_db.execute("SELECT uuid, sub_uuid, sub_size, sub_count, sub_hash FROM file_storage_sparse"):
             s_uuid, sub_uuid, sub_size, sub_count, sub_hash = item
+            if s_uuid == uuid_package.UUID('00000000-0000-0000-0000-000000000000'):
+                continue # This is a file marked unused, ignore this.
             sub_len = min(len(sub_uuid), len(sub_size), len(sub_count), len(sub_hash))
             for idx in range(0, sub_len):
                 # Create sparsed file index
@@ -121,22 +123,49 @@ class FileStorage:
         except Exception: pass
         # In the case of having such an item that satisfies the limits, we insert.
         if f_uuid:
-            # Create file in tree structure
-            u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, sparse_id=(f_uuid, f_count + 1), master=self)
-            # Indexing file in SQL database
-            self.st_db.execute("""
-                UPDATE file_storage_sparse SET
-                        size = %s, count = %s,
-                        sub_uuid = array_cat(sub_uuid, %s),
-                        sub_size = array_cat(sub_size, %s::bigint[]),
-                        sub_count = array_cat(sub_count, %s::bigint[]),
-                        sub_hash = array_cat(sub_hash, %s),
-                        sub_content = array_cat(sub_content, %s)
-                    WHERE uuid = %s;""", (
-                f_size + n_size, f_count + 1,
-                [n_uuid], [n_size], [n_count], [n_hash], [content],
-                f_uuid
-            ))
+            # Attempt to discover unused chunk spaces in this sparse row
+            try:
+                unused_arr = self.st_db.execute("SELECT unused FROM file_storage_sparse WHERE uuid = %s;", (f_uuid,))[0][0] # At non-discovery (which is impossible) this would raise...
+                unused_id = unused_arr[0] # At empty unused this would raise...
+                # Create file in tree structure
+                u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, sparse_id=(f_uuid, unused_id), master=self)
+                self.st_db.execute("""
+                    UPDATE file_storage_sparse SET
+                            size = %s, count = %s,
+                            sub_uuid[%s] = %s,
+                            sub_size[%s] = %s,
+                            sub_count[%s] = %s,
+                            sub_hash[%s] = %s,
+                            sub_content[%s] = %s,
+                            unused = unused[2 : %s]
+                        WHERE uuid = %s;""", (
+                    f_size + n_size, f_count + 1,
+                    unused_id, n_uuid,
+                    unused_id, n_size,
+                    unused_id, n_count,
+                    unused_id, n_hash,
+                    unused_id, content,
+                    len(unused_arr), f_uuid
+                ))
+                pass
+            except:
+                # Create file in tree structure
+                u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, sparse_id=(f_uuid, f_count + 1), master=self)
+                # Indexing file in SQL database
+                self.st_db.execute("""
+                    UPDATE file_storage_sparse SET
+                            size = %s, count = %s,
+                            sub_uuid = array_cat(sub_uuid, %s),
+                            sub_size = array_cat(sub_size, %s::BIGINT[]),
+                            sub_count = array_cat(sub_count, %s::BIGINT[]),
+                            sub_hash = array_cat(sub_hash, %s),
+                            sub_content = array_cat(sub_content, %s)
+                        WHERE uuid = %s;""", (
+                    f_size + n_size, f_count + 1,
+                    [n_uuid], [n_size], [n_count], [n_hash], [content],
+                    f_uuid
+                ))
+                pass
             pass
         # In the case we need to create a new sparse row.
         else:
@@ -242,32 +271,23 @@ class FileStorage:
             return False
         try:
             sp_uuid, sp_size, sp_count = self.st_db.execute("SELECT uuid, size, count FROM file_storage_sparse WHERE uuid = %s;", (s_fl.sparse_uuid,))[0]
-            sp_count = sp_count - 1
+            sp_size -= s_fl.size
+            sp_count -= 1
         except: # There's really nothing I can do.
             return False
         # Remove this file from the sparse row
         self.st_db.execute("""
             UPDATE file_storage_sparse SET
                     size = %s, count = %s,
-                    sub_uuid = array_cat(sub_uuid[0 : %s], sub_uuid[%s : %s]),
-                    sub_size = array_cat(sub_size[0 : %s], sub_size[%s : %s]),
-                    sub_count = array_cat(sub_count[0 : %s], sub_count[%s : %s]),
-                    sub_hash = array_cat(sub_hash[0 : %s], sub_hash[%s : %s]),
-                    sub_content = array_cat(sub_content[0 : %s], sub_content[%s : %s])
-                WHERE uuid = %s;""", (sp_size - s_fl.size, sp_count) + (
-            s_fl.sparse_index - 1, s_fl.sparse_index + 1, sp_count + 2
-        ) * 5 + (sp_uuid,))
-        # After removal the index of all other files must have changed representation in the tree...
-        try:
-            results = self.st_db.execute("SELECT sub_uuid FROM file_storage_sparse WHERE uuid = %s;", (sp_uuid,))[0][0]
-            for idx in range(0, len(results)):
-                sub_uuid = results[idx]
-                try: sub_fl = self.st_uuid_idx[sub_uuid]
-                except: continue
-                sub_fl.sparse_uuid = sp_uuid
-                sub_fl.sparse_index = idx + 1
-        except:
-            return False
+                    sub_uuid[%s] = '00000000-0000-0000-0000-000000000000',
+                    sub_size[%s] = 0,
+                    sub_count[%s] = 0,
+                    sub_hash[%s] = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                    sub_content[%s] = E'\\x',
+                    unused = array_cat(unused, %s::BIGINT[])
+                WHERE uuid = %s;""", (sp_size, sp_count) +
+            (s_fl.sparse_index,) * 5 + ([s_fl.sparse_index], s_fl.sparse_uuid)
+        )
         # Now checking if we need to remove this row as well
         if sp_count >= 1:
             return True
