@@ -13,6 +13,9 @@ while True:
         sqlfs.Filesystem.shell()
     except KeyboardInterrupt:
         break
+    except Exception:
+        continue
+    break
 
 print('')
 print('Exitting.')

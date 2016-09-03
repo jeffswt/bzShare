@@ -22,11 +22,7 @@ class StaticHandler(tornado.web.RequestHandler):
             tornado.ioloop.IOLoop.instance().add_callback(get_file_data_async)
             file_data = yield future
         except Exception:
-            self.set_status(404, "Not Found")
-            self._headers = tornado.httputil.HTTPHeaders()
-            self.add_header('Content-Length', '0')
-            self.flush()
-            return None
+            raise tornado.web.HTTPError(404)
 
         # File actually exists, sending data
         self.set_status(200, "OK")

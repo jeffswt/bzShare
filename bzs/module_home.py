@@ -24,17 +24,13 @@ class HomeHandler(tornado.web.RequestHandler):
             tornado.ioloop.IOLoop.instance().add_callback(get_index_html_async)
             file_data = yield future
         except Exception:
-            self.set_status(404, "Not Found")
-            self.add_header('Content-Length', '0')
-            self.flush()
-            return None
+            raise tornado.web.HTTPError(404)
 
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_data)

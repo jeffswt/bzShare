@@ -1,4 +1,6 @@
 
+import re
+
 from . import file_storage
 from . import file_system
 from . import file_system_permissions
@@ -149,6 +151,14 @@ def get_content(path, user):
         return b''
     ret_result = Filesystem.get_content(path)
     return ret_result
+
+def get_file_name(path):
+    """Returns the filename of 'path', although unknown whether has access
+    or even exists."""
+    path = path.split('/')
+    path.remove('')
+    path = [''] + path
+    return path[-1:][0]
 
 def readable(path, user):
     """Whether the user has read access to this file."""

@@ -137,7 +137,7 @@ var bzsReloadMainframeRefresh = function() {
     bzsReloadMainframeSeamless(bzsReloadMainframeLastAccess);
     return ;
 }
-bzsReloadMainframeRefresh();
+// bzsReloadMainframeRefresh();
 
 var bzsReloadMainIndex = function() {
     $('#bzs-index-main-header').load('/ #bzs-index-main-header');
@@ -192,7 +192,7 @@ var bzsHistoryRollfront = function() {
     }
     return ;
 }
-$('#navbar-back-button').click(bzsHistoryRollback);
+
 // Touch-devices-only functions.
 if ($(window).width() <= bzsSizeTabletWidth) {
     $('html').on('swiperight', function() {

@@ -19,6 +19,7 @@ from . import module_error404
 from . import module_files
 from . import module_home
 from . import module_index
+from . import module_preview
 from . import module_static
 from . import module_user
 
@@ -40,6 +41,7 @@ def main():
             (r'^/files/upload/(.*)/(.*)$', module_files.FilesUploadHandler),
             (r'^/files/operation/?', module_files.FilesOperationHandler),
             (r'^/user/(.*)$', module_user.UserActivityHandler),
+            (r'^/preview/(.*?)/(.*)/?$', module_preview.PreviewHandler),
             (r'.*', module_error404.Error404Handler)
         ],
         xsrf_cookies=False # True to prevent CSRF third party attacks

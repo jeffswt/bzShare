@@ -33,11 +33,7 @@ class MainframeHandler(tornado.web.RequestHandler):
                 get_index_html_async, working_user)
             file_data = yield future
         except Exception:
-            print(Exception)
-            self.set_status(404, "Not Found")
-            self.add_header('Content-Length', '0')
-            self.flush()
-            return None
+            raise tornado.web.HTTPError(404)
 
         # File actually exists, sending data
         self.set_status(200, "OK")

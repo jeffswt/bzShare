@@ -88,6 +88,8 @@ class FilesListHandler(tornado.web.RequestHandler):
                         attrib['target-link'] = '/files/list/%s' % utils.encode_str_to_hexed_b64(actual_path + '/')
                     else:
                         attrib['target-link'] = '/files/download/%s/%s' % (utils.encode_str_to_hexed_b64(actual_path), attrib['file-name-url'])
+                    attrib['preview-link'] = '/preview/view/%s' % utils.encode_str_to_hexed_b64(actual_path)
+                    # Encoding UUID
                     attrib['uuid'] = utils.encode_str_to_hexed_b64(actual_path)
                     files_attrib_list.append(attrib)
                 except Exception:
@@ -131,12 +133,6 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self, file_path, file_name):
         """/files/download/HEXED_BASE64_STRING_OF_PATH/ACTUAL_FILENAME"""
-        # Something that I do not wish to write too many times..
-        def invoke_404():
-            self.set_status(404, "Not Found")
-            self.add_header('Content-Length', '0')
-            self.flush()
-            return
         working_user = users.get_user_by_cookie(
             self.get_cookie('user_active_login', default=''))
 
@@ -144,10 +140,9 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         try:
             file_path = utils.decode_hexed_b64_to_str(file_path)
         except Exception:
-            file_path = ''
+            raise tornado.web.HTTPError(404)
         if not file_path:
-            invoke_404()
-            return
+            raise tornado.web.HTTPError(404)
 
         # Asynchronous web request...
         file_block_size = 64 * 1024 # 64 KiB / Chunk
@@ -168,7 +163,6 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'application/x-download')
         self.add_header('Content-Length', str(len(file_data)))
-        self.xsrf_form_html() # Prevent CSRF attacks
 
         while file_stream.tell() < len(file_data):
             byte_pos = file_stream.tell()
@@ -257,7 +251,6 @@ class FilesOperationHandler(tornado.web.RequestHandler):
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'text/html')
         self.add_header('Content-Length', str(len(file_temp)))
-        self.xsrf_form_html() # Prevent CSRF attacks
 
         # Push result to client in one blob
         self.write(file_temp)
