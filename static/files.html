@@ -26,19 +26,27 @@
             <div class="box">
                 <div class="box-header">
                     <div class="btn-group">
-                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCheckmarkToggleAll()"><span class="ion ion-toggle-filled" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCheckmarkToggleAll()"><span class="ion ion-toggle-filled" style="font-size:20px"></span></button>
                         % if cwd_writable:
-                        <button class="btn btn-primary" type="button" onclick="javascript:$('#files-upload-uploader-hidden').click();"><span class="ion ion-arrow-up-a" style="font-size:16px"></span></button>
-                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCreateFolder()"><span class="ion ion-folder" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:$('#files-upload-uploader-hidden').click();"><span class="ion ion-arrow-up-a" style="font-size:20px"></span></button>
                         % else:
-                        <button class="btn btn-primary" type="button" disabled="true"><span class="ion ion-arrow-up-a" style="font-size:16px"></span></button>
-                        <button class="btn btn-primary" type="button" disabled="true"><span class="ion ion-folder" style="font-size:16px"></span></button>
+                        <button class="btn btn-primary" type="button" disabled="true"><span class="ion ion-arrow-up-a" style="font-size:20px;"></span></button>
                         % endif
-                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkCopy()" id="files-checkmark-copy"><span class="ion ion-social-buffer" style="font-size:16px"></span></button>
-                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkMove()" id="files-checkmark-move"><span class="ion ion-scissors" style="font-size:16px"></span></button>
-                        <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesMarkDelete()" id="files-checkmark-delete"><span class="ion ion-trash-a" style="font-size:16px"></span></button>
-                        <button class="btn btn-primary" type="button" id="files-checkmark-paste" onclick="javascript:bzsFilesMarkPaste()"><span class="ion ion-share" style="font-size:16px"></span></button>
+                        <span id="files-checkmark-dropdown" class="dropdown">
+                            <button id="files-checkmark-more" class="btn btn-primary" type="button" data-toggle="dropdown" target="#files-checkmark-dropdown" href="#"><span class="ion ion-more" style="font-size:20px"></span></button>
+                            <ul class="dropdown-menu">
+                                % if cwd_writable:
+                                <li><a href="javascript:bzsFilesCreateFolder()"><span class="ion ion-folder" style="font-size:20px; height:30px"></span>Create folder</a></li>
+                                % endif
+                                <li id="files-checkmark-copy"><a href="javascript:bzsFilesMarkCopy()"><span class="ion ion-social-buffer" style="font-size:20px; height:30px"></span>Copy selected files</a></li>
+                                <li id="files-checkmark-move"><a href="javascript:bzsFilesMarkMove()"><span class="ion ion-scissors" style="font-size:20px; height:30px"></span>Move selected files</a></li>
+                                <li id="files-checkmark-delete"><a href="javascript:bzsFilesMarkDelete()"><span class="ion ion-trash-a" style="font-size:20px; height:30px"></span>Delete selected files</a></li>
+                                <li id="files-checkmark-paste"><a href="javascript:bzsFilesMarkPaste()"><span class="ion ion-share" style="font-size:20px; height:30px"></span>Paste files here</a></li>
+                            </ul>
+                        </span>
                     </div>
+                    <span style="padding-left:5px">&nbsp;
+                    </span>
                     <div class="btn-group">
                         % for fldr in files_hierarchy_list:
                             % if 'disabled' in fldr and fldr['disabled']:
@@ -113,14 +121,23 @@
                                 % endif
                                 <div class="btn-group">
                                     % if attrib['mime-type'] != 'directory/folder':
-                                    <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'" target="_blank"><div class="ion ion-arrow-down-a"></div></button>
+                                    <button class="btn btn-default" type="button" onclick="location.href='${attrib['target-link']}'" target="_blank"><span class="ion ion-arrow-down-a"></span></button>
                                     % endif
-                                    % if attrib['writable']:
-                                    <button class="btn btn-default" type="button" data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)"><div class="ion ion-edit"></div></button>
-                                    % else:
-                                    <button class="btn btn-default" type="button" disabled="true"><div class="ion ion-edit"></div></button>
-                                    % endif
-                                    <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}" ${'' if attrib['writable'] else 'data-files-non-writable="true"'}><div class="ion ion-checkmark-round"></div></button>
+                                    <button class="btn btn-default" type="button"  data-files-checkmark-name="files-checkmark-button" data-uuid="${attrib['uuid']}" ${'' if attrib['writable'] else 'data-files-non-writable="true"'}><span class="ion ion-checkmark-round"></span></button>
+                                    <span class="dropdown">
+                                        <button class="btn btn-default" data-toggle="dropdown" href="#">
+                                        <span class="ion ion-more"></span>
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            % if attrib['writable']:
+                                            <li><a data-toggle="modal" data-target="#dialog-input-string-container" href="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)"><span class="ion ion-edit" style="font-size:20px; height:30px"></span>Rename Object</a></li>
+                                            % endif
+                                            % if attrib['mime-type'] != 'directory/folder':
+                                            <li><a href="#"><span class="ion ion-image" style="font-size:20px; height:30px"></span>Preview File</a></li>
+                                            % endif
+                                        </ul>
+                                    </span>
+                                </div>
                                 </span>
                                 </div>
                             </td>
@@ -201,34 +218,40 @@ var bzsFilesCheckmarkUncheckAll = function() {
 
 var bzsFilesMarkResetButtons = function() {
     var arr = $('[data-files-checkmark-name]' + '.btn-info');
+    var has_shown = cwd_writable;
     // According to selections (readable)
     if (arr.length > 0) {
-        $('#files-checkmark-copy').removeAttr('disabled');
-        $('#files-checkmark-move').removeAttr('disabled');
-        $('#files-checkmark-delete').removeAttr('disabled');
+        $('#files-checkmark-copy').removeAttr('hidden');
+        has_shown = true;
     } else {
-        $('#files-checkmark-copy').attr('disabled', 'disabled');
-        $('#files-checkmark-move').attr('disabled', 'disabled');
-        $('#files-checkmark-delete').attr('disabled', 'disabled');
+        $('#files-checkmark-copy').attr('hidden', 'hidden');
     }
     // Those which are really writable
     var arr2 = $('[data-files-checkmark-name]' + '[data-files-non-writable]' + '.btn-info');
     if (arr.length > 0 && arr2.length <= 0) {
-        $('#files-checkmark-move').removeAttr('disabled');
-        $('#files-checkmark-delete').removeAttr('disabled');
+        $('#files-checkmark-move').removeAttr('hidden');
+        $('#files-checkmark-delete').removeAttr('hidden');
+        has_shown = true;
     } else {
-        $('#files-checkmark-move').attr('disabled', 'disabled');
-        $('#files-checkmark-delete').attr('disabled', 'disabled');
+        $('#files-checkmark-move').attr('hidden', 'hidden');
+        $('#files-checkmark-delete').attr('hidden', 'hidden');
     }
     // According to clipboard
     try {
-        if (bzsFilesClipboard.length > 0)
-            $('#files-checkmark-paste').removeAttr('disabled');
-        else
-            $('#files-checkmark-paste').attr('disabled', 'disabled');
+        if (bzsFilesClipboard.length > 0) {
+            $('#files-checkmark-paste').removeAttr('hidden');
+            has_shown = true;
+        } else {
+            $('#files-checkmark-paste').attr('hidden', 'hidden');
+        }
     } catch (Exception) {
-        $('#files-checkmark-paste').attr('disabled', 'disabled');
+        $('#files-checkmark-paste').attr('hidden', 'hidden');
     }
+    // Set 'more' button status
+    if (has_shown)
+        $('#files-checkmark-more').removeAttr('disabled');
+    else
+        $('#files-checkmark-more').attr('disabled', 'disabled');
     return ;
 };
 bzsFilesMarkResetButtons();
@@ -259,7 +282,8 @@ var bzsFilesCreateFolderAction = function(action, data_uuid, form_content) {
     return ;
 };
 var bzsFilesCreateFolder = function() {
-    bzsDialogInputStringLoad('Create new folder',
+    bzsDialogInputStringLoad(
+        'Create new folder',
         'New Folder',
         '/files/operation',
         '${cwd_uuid}',
