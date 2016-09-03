@@ -1,3 +1,16 @@
 <section class="content">
-<!-- <iframe src="/home"> -->
+<iframe id="bzs-pdf-preview" src="/preview/pdf/${file_hash}" height="120px" width="100%" style="position:absolute; top:0px; right:0px; bottom:0px; left:0px; overflow:hidden; border:hidden;">
+</iframe>
+<script>
+// Yep. That's a trick.
+var bzsPdfPreviewResize = function() {
+    var side_height = $('#bzs-index-main-sidebar').height();
+    var foot_height = $('#bzs-index-main-footer').height();
+    var pdf_height = side_height - 50;
+    $('#bzs-pdf-preview').height(pdf_height);
+    return ;
+};
+$(window).resize(bzsPdfPreviewResize);
+bzsPdfPreviewResize();
+</script>
 </section>
