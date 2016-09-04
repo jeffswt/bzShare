@@ -168,17 +168,15 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
         if recv_range <= 0:
             self.set_status(200, "OK")
             self.add_header('Connection', 'close')
-            print('200 ok')
         else:
             self.set_status(206, "Partial Content")
             self.add_header('Connection', 'keep-alive')
-            print('206 part')
         self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Content-Type', 'application/x-download')
         self.add_header('Content-Length', file_stream.length - recv_range)
         self.add_header('Content-Range', 'bytes %d-%d/%d' % (recv_range, file_stream.length - 1, file_stream.length))
-        print(self._headers)
+
         file_stream.seek(recv_range, 0)
         while file_stream.tell() < file_stream.length:
             # Entry to the concurrency worker

@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/static/viewerjs/viewer.min.css">
+</head>
+<body>
+    <div id="bzs-image-preview-cont" class="docs-pictures" data-original="/files/download/${file_hash}/${file_name_url}" style="position:absolute; top:0px; right:0px; bottom:0px; left:0px; width:100%; height: 100%; background-color: rgb(10, 10, 20);">
+        <img id="bzs-image-preview" src="/files/download/${file_hash}/${file_name_url}" style="position:absolute; top:0px; right:0px; bottom:0px; left:0px; width:100%; height: 100%; overflow:hidden; border:hidden; opacity: 0.3;">
+    </div>
+
+    <script src="/static/plugins/jQuery/jquery-2.2.3.min.js"></script>
+    <script src="/static/bootstrap/js/bootstrap.min.js"></script>
+    <script src="/static/viewerjs/viewer.min.js"></script>
+    <script>
+    var options = {
+        // inline: true,
+        url: 'data-original',
+        inline: false,
+        transition: true
+    };
+    $('#bzs-image-preview').viewer(options);
+    $('#bzs-image-preview').viewer('show');
+    </script>
+</body>
+</html>
