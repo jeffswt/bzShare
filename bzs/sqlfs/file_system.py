@@ -3,6 +3,8 @@ import copy
 import re
 import uuid as uuid_package
 
+from . import file_stream
+
 class Filesystem:
     """This is a virtual filesystem based on a relational PostgreSQL database.
     We might call it a SQLFS. Its tree-topological structure enables it to index
@@ -410,7 +412,7 @@ class Filesystem:
         # This should never happen!
         return file_name
 
-    def __mkfile(self, path_parent, file_name, owners, content):
+    def __mkfile(self, path_parent, file_name, owners, content_stream):
         """Inject object into filesystem, while passing in content. The content
         itself would be indexed in FileStorage."""
         path_parent = self.__locate(path_parent)
@@ -420,7 +422,7 @@ class Filesystem:
         file_name = self.__make_nice_filename(file_name)
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Finished assertion.
-        n_uuid = self.fs_store.new_unique_file(content)
+        n_uuid = self.fs_store.new_unique_file(content_stream)
         n_fl = self.fsNode(False, file_name, owners, f_uuid=n_uuid, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
@@ -487,14 +489,13 @@ class Filesystem:
         return dirs
 
     def __get_content(self, item):
-        """Gets binary content of the object (must be file) and returns the
-        actual content in bytes."""
+        """Gets file stream of binary content of the object and must be file."""
         item = self.__locate(item)
         if not item:
-            return b''
+            return file_stream.EmptyFileStream
         if item.is_dir:
             item = None
-            return b''
+            return file_stream.EmptyFileStream
         return self.fs_store.get_content(item.f_uuid)
 
     def __copy_recursive(self, item, new_owners):
@@ -695,7 +696,7 @@ class Filesystem:
                 print('')
             elif op == 'cat':
                 dest = self.locate(cmd[1], parent=cwd)
-                print(bytes(self.get_content(dest)))
+                print(self.get_content(dest).read())
             elif op == 'cd':
                 if cmd[1] == '..':
                     cwd_dest = cwd.parent
@@ -720,10 +721,12 @@ class Filesystem:
             elif op == 'mkdir':
                 self.create_directory(cwd, cmd[1], cuser)
             elif op == 'mkfile':
-                content = b''
                 if len(cmd) >= 3:
                     content = cmd[2].encode('utf-8')
-                self.create_file(cwd, cmd[1], cuser, content)
+                else:
+                    content = b''
+                content_stream = file_stream.FileStream(mode='write', est_length=len(content), obj_data=content, database=self.fs_db)
+                self.create_file(cwd, cmd[1], cuser, content_stream)
             elif op == 'rm':
                 self.remove(self.locate(cmd[1], parent=cwd))
             elif op == 'cp':
@@ -752,10 +755,10 @@ class Filesystem:
         ret_result = self.__is_child(node, parent)
         return ret_result
 
-    def create_file(self, path_parent, file_name, owners, content):
+    def create_file(self, path_parent, file_name, owners, content_stream):
         """Inject object into filesystem, while passing in content. The content
         itself would be indexed in FileStorage."""
-        ret_result = self.__mkfile(path_parent, file_name, owners, content)
+        ret_result = self.__mkfile(path_parent, file_name, owners, content_stream)
         return ret_result
 
     def create_directory(self, path_parent, file_name, owners):
@@ -841,8 +844,8 @@ class Filesystem:
         return ret_result
 
     def get_content(self, path):
-        """Gets binary content of the object (must be file) and returns the
-        actual content in bytes."""
+        """Gets file stream of binary content of the object and returns the
+        file handle."""
         ret_result = self.__get_content(path)
         return ret_result
 

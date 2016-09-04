@@ -9,16 +9,16 @@ sparse_size = 2 * 1024 * 1024 # Files under 2 MB would be considered sparse
 class FileStream:
     """A file stream handler used to work on both large and sparsed files."""
 
-    def __init__(self, mode='read', est_length=1024**8, obj_oid=0, database=None):
+    def __init__(self, mode='read', est_length=1024**8, obj_oid=0, obj_data=b'', database=None):
         if not database:
             raise AttributeError('Must provide a database')
         self.db = database
-        if est_length <= sparse_size and obj_oid <= 0:
+        if (est_length <= sparse_size or len(obj_data) > 0) and obj_oid <= 0:
             # Create sparsed file
-            self.content_data = bytes()
-            self.content_obj = io.BytesIO(self.content_data)
+            self.content_data = obj_data
+            self.content_obj = io.BytesIO(self.content_data) # Already seeked to begin
             self.mode = mode
-            self.length = 0
+            self.length = len(obj_data)
             self.is_sparse = True
         elif est_length > sparse_size:
             # Create large object
@@ -35,6 +35,8 @@ class FileStream:
 
     def close(self):
         """close() -- close the file stream."""
+        if self.closed:
+            return
         if self.is_sparse:
             self.content_obj.seek(0, 0)
             self.content_data = self.content_obj.read()
@@ -64,6 +66,21 @@ class FileStream:
             pass
         del self.est_length
         self.closed = True
+        return
+
+    def reopen(self):
+        """reopen() -- Reopen the file as reading mode."""
+        if self.is_sparse:
+            self.content_obj = io.BytesIO(self.content_data)
+            self.est_length = len(self.content_data)
+        else:
+            self.content_conn = self.db.execute_raw()
+            self.content_cur = self.content_conn.cursor()
+            self.content_obj = self.content_conn.lobject(self.content_oid)
+            self.est_length = self.length
+        self.closed = False
+        self.mode = 'read'
+        self.content_obj.seek(0, 0)
         return
 
     def read(self, size=-1):
@@ -103,7 +120,7 @@ class FileStream:
         else:
             result = self.content_obj.write(cont)
             # self.content_conn.commit()
-        a.length += len(cont)
+        self.length += len(cont)
         return result
 
     def size(self):
@@ -140,3 +157,11 @@ class FileStream:
             return self.content_oid
         raise MemoryError('Something terrible had happened')
     pass
+
+EmptyFileStream = FileStream(
+    mode='read',
+    est_length=0,
+    obj_data=b'',
+    database=db.Database
+)
+EmptyFileStream.close()

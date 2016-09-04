@@ -29,7 +29,7 @@ FilesystemPermissions = file_system_permissions.FilesystemPermissions(
 ################################################################################
 # Exported file-system functions, thread-safe, permission-safe.
 
-def create_file(path_parent, file_name, content, user=None):
+def create_file(path_parent, file_name, content_stream, user=None):
     """Inject object into filesystem, while passing in content. The content
     itself would be indexed in FileStorage. If 'path-parent' is not writable,
     then the creation would be denied."""
@@ -37,7 +37,7 @@ def create_file(path_parent, file_name, content, user=None):
         return False
     if user: usr_handle = user.handle
     else: usr_handle = 'public'
-    ret_result = Filesystem.create_file(path_parent, file_name, {usr_handle}, content)
+    ret_result = Filesystem.create_file(path_parent, file_name, {usr_handle}, content_stream)
     return ret_result
 
 def create_directory(path_parent, file_name, user=None):

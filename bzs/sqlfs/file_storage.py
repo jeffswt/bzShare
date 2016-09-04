@@ -6,6 +6,20 @@ import uuid as uuid_package
 
 from . import file_stream
 
+def fs_st_sha256(stream):
+    """This is not ordinary SHA256. It is based on a scheme where memory would
+    not be too much and buffer unavailable."""
+    hash_concat = ''
+    stream.close()
+    stream.reopen()
+    while True:
+        chunk = stream.read(8192)
+        hash_concat += hashlib.sha256(chunk).hexdigest()
+        if len(chunk) < 8192:
+            break
+    hash_final = hashlib.sha256(hash_concat.encode('utf-8', 'ignore')).hexdigest()
+    return hash_final
+
 class FileStorage:
     """This is a storage system built for bzs.sqlfs.file_system.Filesystem,
     which handles files for Filesystem, large files directly use LOBJECT, and
@@ -74,7 +88,7 @@ class FileStorage:
         self.st_hash_idx         = dict()
         self.st_db               = database
         self.utils_pkg           = utils_package
-        self.st_hash_algo        = hashlib.sha256 # Hashing algorithm, could be md5, sha1, sha224, sha256, sha384, sha512, while sha384 and sha512 are not recommended due to slow speeds on 32-bit computers
+        self.st_hash_algo        = fs_st_sha256 # Hashing algorithm, could be md5, sha1, sha224, sha256, sha384, sha512, while sha384 and sha512 are not recommended due to slow speeds on 32-bit computers
         self.st_sparse_limit     = 16 * 1024 * 1024 # Create new sparse row if sparse row exceeded 16 MB
         self.st_sparse_cnt_limit = 256 # No more than 256 files would appear in one sparse row
         self.st_sparse_size      = file_stream.sparse_size # Import from filestream manager
@@ -120,7 +134,7 @@ class FileStorage:
             ))
         return True
 
-    def __new_unique_file_sparse(self, n_uuid, n_size, n_count, n_hash, content):
+    def __new_unique_file_sparse(self, n_uuid, n_size, n_count, n_hash, content_stream):
         """Creates a UniqueFile that is a sparsed file, which should be
         determined by upstream functions that it is indeed a sparsed file. Then
         we index this file in not large objects but direct raw strings. Returns
@@ -163,7 +177,7 @@ class FileStorage:
                     unused_id, n_size,
                     unused_id, n_count,
                     unused_id, n_hash,
-                    unused_id, content,
+                    unused_id, content_stream.get_content(),
                     len(unused_arr), f_uuid
                 ))
                 pass
@@ -181,7 +195,7 @@ class FileStorage:
                             sub_content = array_cat(sub_content, %s)
                         WHERE uuid = %s;""", (
                     f_size + n_size, f_count + 1,
-                    [n_uuid], [n_size], [n_count], [n_hash], [content],
+                    [n_uuid], [n_size], [n_count], [n_hash], [content_stream.get_content()],
                     f_uuid
                 ))
                 pass
@@ -198,7 +212,7 @@ class FileStorage:
                         (uuid, size, count, sub_uuid, sub_size, sub_count, sub_hash, sub_content)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""", (
                 f_uuid, n_size, 1,
-                [n_uuid], [n_size], [n_count], [n_hash], [content]
+                [n_uuid], [n_size], [n_count], [n_hash], [content_stream.get_content]
             ))
             pass
         # Inserting file handle into tree
@@ -206,15 +220,15 @@ class FileStorage:
         self.st_hash_idx[n_hash] = u_fl
         return n_uuid
 
-    def __new_unique_file(self, content):
+    def __new_unique_file(self, content_stream):
         """Creates a UniqueFile, and returns its UUID."""
         n_uuid = self.utils_pkg.get_new_uuid(None, self.st_uuid_idx)
-        n_size = len(content)
+        n_size = content_stream.length
         n_count = 1
-        n_hash = self.st_hash_algo(content).hexdigest()
+        n_hash = self.st_hash_algo(content_stream)
         # If the size is too small, we sparse it
-        if n_size < self.st_sparse_size:
-            return self.__new_unique_file_sparse(n_uuid, n_size, n_count, n_hash, content)
+        if content_stream.is_sparse:
+            return self.__new_unique_file_sparse(n_uuid, n_size, n_count, n_hash, content_stream)
         # Checking hash of the file.
         if n_hash in self.st_hash_idx:
             old_fl = self.st_hash_idx[n_hash]
@@ -225,29 +239,30 @@ class FileStorage:
         # This is indeed a unique file that is large enough
         u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, master=self)
         # Done indexing, now proceeding to process content into SQL (RAW)
-        with self.st_db.execute_raw() as db:
-            with db.cursor() as cur:
-                # Insert metadata only, for memory conservation
-                cur.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, lo_from_bytea(0, E'\\x'));", (n_uuid, n_size, n_count, n_hash))
-                db.commit()
-                # Select the last object we just inserted
-                cur.execute("SELECT content FROM file_storage WHERE uuid = %s;", (n_uuid,))
-                n_oid = cur.fetchone()[0] # Retrieved large object descriptor
-                db.commit()
-                # Making psycopg2.extensions.lobject (Large Object)
-                n_lobj = db.lobject(n_oid, 'wb')
-                # Writing changes to database object
-                f_stream = io.BytesIO(content)
-                chunk_size = 512 * 1024 # Chunk size of 64 KB
-                # Continuously writing to target
-                while True:
-                    chunk = f_stream.read(chunk_size)
-                    n_lobj.write(chunk)
-                    if len(chunk) < chunk_size:
-                        break
-                n_lobj.close()
-                f_stream.close()
-                db.commit()
+        self.st_db.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, %s)", (n_uuid, n_size, n_count, n_hash, content_stream.get_content()))
+        # with self.st_db.execute_raw() as db:
+        #     with db.cursor() as cur:
+        #         # Insert metadata only, for memory conservation
+        #         cur.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, lo_from_bytea(0, E'\\x'));", (n_uuid, n_size, n_count, n_hash))
+        #         db.commit()
+        #         # Select the last object we just inserted
+        #         cur.execute("SELECT content FROM file_storage WHERE uuid = %s;", (n_uuid,))
+        #         n_oid = cur.fetchone()[0] # Retrieved large object descriptor
+        #         db.commit()
+        #         # Making psycopg2.extensions.lobject (Large Object)
+        #         n_lobj = db.lobject(n_oid, 'wb')
+        #         # Writing changes to database object
+        #         f_stream = io.BytesIO(content)
+        #         chunk_size = 512 * 1024 # Chunk size of 64 KB
+        #         # Continuously writing to target
+        #         while True:
+        #             chunk = f_stream.read(chunk_size)
+        #             n_lobj.write(chunk)
+        #             if len(chunk) < chunk_size:
+        #                 break
+        #         n_lobj.close()
+        #         f_stream.close()
+        #         db.commit()
         # Injecting file into main indexer
         self.st_uuid_idx[n_uuid] = u_fl
         self.st_hash_idx[n_hash] = u_fl
@@ -336,7 +351,14 @@ class FileStorage:
         # Of course this writes easier...
         try: content = selection[0][0]
         except: content = b''
-        return content
+        # Creates file_stream object for others to read
+        content_stream = file_stream.FileStream(
+            mode='read',
+            est_length=len(content),
+            obj_data=content,
+            database=self.st_db
+        )
+        return content_stream
 
     def __get_content(self, uuid_):
         """Retrieves content from file storage and returns the content in binary
@@ -349,30 +371,42 @@ class FileStorage:
         if u_fl.sparse_uuid:
             return self.__get_content_sparse(u_fl)
         # Got file handle, now querying large file data
-        content = b'' # Empty bytes, ready to write
-        with self.st_db.execute_raw() as db:
-            with db.cursor() as cur:
-                # Insert metadata only, for memory conservation
-                cur.execute("SELECT content FROM file_storage WHERE uuid = %s", (u_fl.uuid,))
-                db.commit()
-                try:
-                    f_oid = cur.fetchone()[0] # Retrieved large object descriptor
-                except: # Not in database
-                    return b''
-                db.commit()
-                # Making psycopg2.extensions.lobject (Large Object)
-                f_lobj = db.lobject(f_oid, 'rb')
-                # Writing query results to result
-                chunk_size = 2 * 1024 * 1024 # Chunk size of 2 MB
-                # Continuously reading from target
-                while True:
-                    chunk = f_lobj.read(chunk_size)
-                    content += chunk
-                    if len(chunk) < chunk_size:
-                        break
-                f_lobj.close()
-                db.commit()
-        return content
+        # content = b'' # Empty bytes, ready to write
+
+        # Get file handle's OID.
+        try:
+            cont_oid = self.st_db.execute("SELECT content FROM file_storage WHERE uuid = %s;", (u_fl.uuid,))[0][0]
+        except:
+            return file_stream.EmptyFileStream
+        content_stream = file_stream.FileStream(
+            mode='read',
+            obj_oid=cont_oid,
+            database=self.st_db
+        )
+
+        # with self.st_db.execute_raw() as db:
+        #     with db.cursor() as cur:
+        #         # Insert metadata only, for memory conservation
+        #         cur.execute("SELECT content FROM file_storage WHERE uuid = %s", (u_fl.uuid,))
+        #         db.commit()
+        #         try:
+        #             f_oid = cur.fetchone()[0] # Retrieved large object descriptor
+        #         except: # Not in database
+        #             return b''
+        #         db.commit()
+        #         # Making psycopg2.extensions.lobject (Large Object)
+        #         f_lobj = db.lobject(f_oid, 'rb')
+        #         # Writing query results to result
+        #         chunk_size = 2 * 1024 * 1024 # Chunk size of 2 MB
+        #         # Continuously reading from target
+        #         while True:
+        #             chunk = f_lobj.read(chunk_size)
+        #             content += chunk
+        #             if len(chunk) < chunk_size:
+        #                 break
+        #         f_lobj.close()
+        #         db.commit()
+        return content_stream
 
     """Exported functions that are commonly available."""
 
@@ -381,9 +415,9 @@ class FileStorage:
         ret_result = self.__add_unique_file(uuid)
         return ret_result
 
-    def new_unique_file(self, content):
+    def new_unique_file(self, content_stream):
         """Creates a UniqueFile, and returns its UUID."""
-        ret_result = self.__new_unique_file(content)
+        ret_result = self.__new_unique_file(content_stream)
         return ret_result
 
     def remove_unique_file(self, uuid):
@@ -393,8 +427,8 @@ class FileStorage:
         return ret_result
 
     def get_content(self, uuid):
-        """Retrieves content from file storage and returns the content in binary
-        bytes. Consumes 1x + 2 MB memory per operation."""
+        """Retrieves content from file storage and returns a I/O operational
+        file handle to read. Consumes very small memory."""
         ret_result = self.__get_content(uuid)
         return ret_result
 
