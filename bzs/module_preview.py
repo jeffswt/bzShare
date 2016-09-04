@@ -22,15 +22,13 @@ class PreviewHandler(tornado.web.RequestHandler):
         def get_index_html_async(working_user, file_hash):
             # Determine file path and file type
             # try:
-            import binascii
-            print(binascii.unhexlify(file_hash))
             file_path = utils.decode_hexed_b64_to_str(file_hash)
             file_name = sqlfs.get_file_name(file_path)
             file_mime = utils.guess_mime_type(file_name)
 
             # Sorting according to MIME type
             if file_mime == 'application/pdf':
-                # PDF document
+                # PDF documents using pdf.js
                 if mode == 'view':
                     file_data = utils.get_static_data('./static/preview_pdf.html')
                 else:
@@ -39,12 +37,23 @@ class PreviewHandler(tornado.web.RequestHandler):
                     file_hash=file_hash,
                     file_name=file_name,
                     file_name_url=urllib.parse.quote(file_name),
+                    file_mime=file_mime,
                     xsrf_form_html=self.xsrf_form_html()
                 )
                 pass
-            elif file_mime == 'text/plain':
+            elif 'text/' in file_mime:
                 # Plain text
                 file_data = 'something'
+                pass
+            elif 'video/' in file_mime or 'audio/' in file_mime:
+                # Videos and audios using video.js.
+                file_data = utils.get_static_data('./static/preview_video.html')
+                file_data = utils.preprocess_webpage(file_data, working_user,
+                    file_hash=file_hash,
+                    file_name=file_name,
+                    file_name_url=urllib.parse.quote(file_name),
+                    xsrf_form_html=self.xsrf_form_html()
+                )
                 pass
             else:
                 # None of the provided has been detected
