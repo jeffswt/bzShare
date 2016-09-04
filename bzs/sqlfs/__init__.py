@@ -72,6 +72,8 @@ def move(source, target_parent, user=None):
         return False
     if user and not FilesystemPermissions.writable_all(source, user):
         return False
+    if user and not FilesystemPermissions.writable_self(source, user):
+        return False
     if user and not FilesystemPermissions.writable(target_parent, user):
         return False
     ret_result = Filesystem.move(source, target_parent)
@@ -82,22 +84,28 @@ def remove(path, user=None):
     all its subdirectories. Must have read and write access."""
     if user and not FilesystemPermissions.readable(path, user):
         return False
+    if user and not FilesystemPermissions.writable_self(path, user):
+        return False
     if user and not FilesystemPermissions.writable_all(path, user):
         return False
     ret_result = Filesystem.remove(path)
     return ret_result
 
-def rename(path, file_name):
+def rename(path, file_name, user=None):
     """Renames object 'path' into file_name. Must have read and write access."""
     if user and not FilesystemPermissions.read_writable(path, user):
         return False
-    ret_result = Filesystem.rename(path)
+    if user and not FilesystemPermissions.writable_self(path, user):
+        return False
+    ret_result = Filesystem.rename(path, file_name)
     return ret_result
 
 def change_ownership(path, owners, user=None):
     """Assign owners of 'path' to new owners, recursively. Must have both read
     and write access to itself and all subfiles."""
     if user and not FilesystemPermissions.read_writable_all(path, user):
+        return False
+    if user and not FilesystemPermissions.writable_self(path, user):
         return False
     ret_result = Filesystem.change_ownership(path, owners)
     return ret_result
@@ -117,6 +125,8 @@ def change_permissions(path, permissions, recursive=False, user=None):
     In 'write' mode, sub_files would not be writable if and only if it
         itself is not writable or its parent does not allow its writing."""
     if user and not FilesystemPermissions.read_writable_all(path, user):
+        return False
+    if user and not FilesystemPermissions.writable_self(path, user):
         return False
     ret_result = Filesystem.change_permissions(path, permissions, recursive)
     return ret_result
@@ -140,7 +150,7 @@ def list_directory(path, user=None):
         if user and not FilesystemPermissions.readable(item['file-name'], user, parent=path):
             continue
         if user:
-            item['writable'] = FilesystemPermissions.writable(item['file-name'], user, parent=path)
+            item['writable'] = FilesystemPermissions.writable_self(item['file-name'], user, parent=path)
         ret_result.append(item)
     return ret_result
 
@@ -169,5 +179,11 @@ def readable(path, user):
 def writable(path, user):
     """Whether the user has write access to this file."""
     if user and not FilesystemPermissions.writable(path, user):
+        return False
+    return True
+
+def writable_self(path, user):
+    """Whether the user has write access to this file from the parent."""
+    if user and not FilesystemPermissions.writable_self(path, user):
         return False
     return True

@@ -32,7 +32,7 @@ class FilesystemPermissions:
             return True
         return user.handle in owners
 
-    def __accessible(self, node, user, mode):
+    def __accessible(self, node, user, mode, check_parent=False):
         """Wrapping function for determining a single attribute."""
         # Kernel has ultimate access to files
         if user.handle in {'kernel'}:
@@ -40,8 +40,9 @@ class FilesystemPermissions:
         # Otherwise normal users
         grp = 'owner' if self.__is_owner(user, node.owners) else 'other'
         res_1 = node.permissions['%s_%s' % (grp, mode)]
-        if node.parent:
-            res_2 = node.parent.permissions['%s_%s' % (grp, mode)] if node.parent.permissions['%s_%s' % (grp, 'pass')] else True
+        if node.parent and check_parent:
+            grp2 = 'owner' if self.__is_owner(user, node.parent.owners) else 'other'
+            res_2 = node.parent.permissions['%s_%s' % (grp2, mode)] if node.parent.permissions['%s_%s' % (grp2, 'pass')] else True
         else:
             res_2 = True
         return res_1 and res_2
@@ -79,14 +80,21 @@ class FilesystemPermissions:
         return _rd_all(node, user)
 
     def writable(self, node, user, parent=None):
-        """Whether an object is writable. It only matters that its direct
-        parent does not allow children to be writable and itself does not
-        gurantee write access likewise."""
+        """Whether an object is writable. It only matters whether itself allows
+        it to be written."""
         node = self.fs.locate(node, parent)
         if not node:
             return False
         return self.__accessible(node, user, 'write')
 
+    def writable_self(self, node, user, parent=None):
+        """Whether manipulating an object itself is available according to its
+        parent node."""
+        node = self.fs.locate(node, parent)
+        if not node:
+            return False
+        return self.__accessible(node, user, 'write', check_parent=True)
+    
     def writable_all(self, path, user, parent=None):
         """Check permissions of a folder whether it should be writable - all of
         its contents and subfolders should be writable."""

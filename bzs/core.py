@@ -55,7 +55,7 @@ def main():
             # os.fork() operation unavailable on Windows.
             tornado.process.fork_processes(const.get_const('server-threads') - 1)
     web_server = tornado.httpserver.HTTPServer(web_app,
-        max_body_size=256*1024*1024,
+        max_body_size=const.get_const('max-body-size'),
         xheaders=True)
     web_server.add_sockets(web_sockets)
     # Boot I/O thread for asynchronous purposes

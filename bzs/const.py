@@ -23,14 +23,15 @@ universal_options_list = {
     'db-host-port': db_url.port if db_url
         else '8079',
     'license': 'GNU GPL v3',
-    'server-admin-password': '12345678',
+    'max-body-size': 128 * 1024 * 1024,
+    'server-admin-password': os.environ.get('BZS_SERVER_ADMIN_PASSWORD', '12345678'),
     'server-name': 'Tornado/4.4',
     'server-port': int(os.environ.get('PORT',80)),
     'server-threads': 1,
     'time-format': '%a %Y/%m/%d, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
-    'users-invite-code': '571428',
-    'version': 'r0.24'
+    'users-invite-code': os.environ.get('BZS_USERS_INVITE_CODE', '571428'),
+    'version': 'r0.24-dev'
 }
 
 def get_const(_):

@@ -295,16 +295,20 @@ class Filesystem:
         itm_root = self.fsNode(True, '', {'kernel'}, permissions='rw-r--', master=self)
         itm_system = self.fsNode(True, 'System', {'kernel'}, permissions='rw---x', master=self)
         itm_public = self.fsNode(True, 'Public', {'public'}, permissions='rwxr-x', master=self)
-        itm_groups = self.fsNode(True, 'Groups', {'kernel'}, permissions='rw-r-x', master=self)
-        itm_users = self.fsNode(True, 'Users', {'kernel'}, permissions='rw-r-x', master=self)
+        itm_groups = self.fsNode(True, 'Groups', {'kernel'}, permissions='rwxr-x', master=self)
+        itm_users = self.fsNode(True, 'Users', {'kernel'}, permissions='rwxr-x', master=self)
+        itm_kernel_folder = self.fsNode(True, 'kernel', {'kernel'}, permissions='rwx--x', master=self)
         # Removing extra data and linking
         large_set = {itm_system, itm_public, itm_groups, itm_users}
         # Inserting into SQL database
+        # Creating root
         del itm_root.sub_files
         del itm_root.sub_folders
         itm_root.sub_items = set()
         itm_root.sub_names_idx = dict()
         itm_root.parent = None
+        self.fs_root = itm_root
+        # Create system folders
         for item in large_set:
             del item.sub_files
             del item.sub_folders
@@ -313,10 +317,19 @@ class Filesystem:
             itm_root.sub_items.add(item)
             itm_root.sub_names_idx[item.file_name] = item
             item.parent = itm_root
-        self.fs_root = itm_root
+        # Create kernel's user folder
+        del itm_kernel_folder.sub_files
+        del itm_kernel_folder.sub_folders
+        itm_kernel_folder.sub_items = set()
+        itm_kernel_folder.sub_names_idx = dict()
+        itm_kernel_folder.parent = itm_users
+        itm_users.sub_items.add(itm_kernel_folder)
+        itm_users.sub_names_idx[itm_kernel_folder.file_name] = itm_kernel_folder
+        # Injecting nodes
         self.__insert_in_db(self.fs_root)
         for item in large_set:
             self.__insert_in_db(item)
+        self.__insert_in_db(itm_kernel_folder)
         return
 
     def __locate(self, path, parent=None):
@@ -517,6 +530,8 @@ class Filesystem:
         source = self.__locate(source)
         target_parent = self.__locate(target_parent)
         if not source or not target_parent:
+            return False if not return_handle else None
+        if self.__is_child(target_parent, source):
             return False if not return_handle else None
         # Create an environment-friendly file name
         file_name = self.__make_nice_filename(source.file_name)
