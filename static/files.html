@@ -276,8 +276,8 @@ var bzsFilesCreateFolderAction = function(action, data_uuid, form_content) {
         dataType: "json"
     }).complete(function() { // As of jQuery 3, use complete(), otherwise always()
         bzsReloadMainframeRefresh();
-        $('#dialog-input-string-container').modal('hide');
         bzsFilesCreateFolderWorking = false;
+        $('#dialog-input-string-container').modal('hide');
     });
     return ;
 };
@@ -346,6 +346,7 @@ var bzsFilesMarkDelete = function() {
         removeList.push(arr[i].getAttribute('data-uuid'));
     if (removeList.length <= 0)
         return ;
+    bzsDialogLoadingLoad('Deleting files...');
     // Now sending request to server to delete.
     $.ajax({
         method: "POST",
@@ -361,6 +362,7 @@ var bzsFilesMarkDelete = function() {
         bzsFilesClipboardOperation = ""
         bzsFilesMarkResetButtons();
         bzsReloadMainframeRefresh();
+        bzsDialogLoadingUnload();
     });
     return ;
 };
@@ -373,6 +375,7 @@ var bzsFilesMarkPaste = function() {
     } catch (Exception) {
         return ;
     }
+    bzsDialogLoadingLoad('Pasting files...');
     // Perform a JSON message upload to remote server
     $.ajax({
         method: "POST",
@@ -389,6 +392,7 @@ var bzsFilesMarkPaste = function() {
         bzsFilesClipboardOperation = ""
         bzsFilesMarkResetButtons();
         bzsReloadMainframeRefresh();
+        bzsDialogLoadingUnload();
     });
     return ;
 };
@@ -546,10 +550,15 @@ var bzsFilesUploadWork = function() {
         return ;
     }
     var failedCallback = function() {
-        // if(confirm('Upload failed, retry?'))
-        //     upload_content();
-        // else
-        //     location.reload();
+        if(confirm('Upload failed, retry?')) {
+            bzsFilesUploadWork();
+        } else {
+            bzsReloadMainframeRefresh();
+            cancelCallback();
+            bzsFilesUploadWorking = false;
+            bzsReloadMainframeWorking = false;
+            return ;
+        }
         bzsFilesUploadQueueIdx++;
         // Update progress bar, do not retry.
         work_target.children[1].children[0].children[0].setAttribute(
