@@ -192,97 +192,37 @@
                 </li>
                 % endif
 
-                % if user_is_standard_user:
-                <li>
-                    <a href="#" data-href="/messaging">
-                        <div class="ion ion-chatboxes"></div>
-                        <span>Messaging</span>
-                        <span class="pull-right-container">
-                        <small id="container-live-messages" class="label label-primary pull-right">0</small>
-                    	</span>
-                    </a>
-                </li>
-                % endif
-
-                <li class="treeview">
-                    <a href="">
-                        <div class="ion ion-bug"></div>
-                        <span>Online Judge</span>
-                        <span class="pull-right-container">
-                            <i class="fa fa-angle-right pull-left"></i>
-                        </span>
-                    </a>
-                    <ul class="treeview-menu">
-                        <li>
-                            <a href="#" data-href="/online-judge/contests">
-                                <i class="fa fa-circle-o"></i>
-                                Contests
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" data-href="/online-judge/problemsets">
-                                <i class="fa fa-circle-o"></i>
-                                Problemsets
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" data-href="/online-judge/status">
-                                <i class="fa fa-circle-o"></i>
-                                Status
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" data-href="/online-judge/ratings">
-                                <i class="fa fa-circle-o"></i>
-                                Ratings
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-
-                % if user_is_administrator:
                 <li class="treeview">
                     <a href="#">
                         <div class="ion ion-gear-b",></div>
-                        <span>Server Manager</span>
+                        <span>Settings</span>
                         <span class="pull-right-container">
                             <i class="fa fa-angle-right pull-left"></i>
                         </span>
                     </a>
                     <ul class="treeview-menu">
                         <li>
-                            <a href="#" data-href="/server-manager/system-availability">
+                            <a href="#" data-href="/settings/profile">
                                 <i class="fa fa-circle-o"></i>
-                                System Availability
+                                Profile
                             </a>
                         </li>
                         <li>
-                            <a href="#" data-href="/server-manager/network-traffic">
+                            <a href="#" data-href="/settings/usergroups">
                                 <i class="fa fa-circle-o"></i>
-                                Network Traffic
+                                Usergroups
                             </a>
                         </li>
+                        % if user_is_administrator:
                         <li>
-                            <a href="#" data-href="/server-manager/access-control">
-                                <i class="fa fa-circle-o"></i>
-                                Access Control
-                            </a>
-                        </li>
-                        <li>
-                            <a href="#" data-href="/server-manager/account-management">
+                            <a href="#" data-href="/settings/account-management">
                                 <i class="fa fa-circle-o"></i>
                                 Account Management
                             </a>
                         </li>
-                        <li>
-                            <a href="#" data-href="/server-manager/secure-shell">
-                                <i class="fa fa-circle-o"></i>
-                                Secure Shell
-                            </a>
-                        </li>
+                        % endif
                     </ul>
                 </li>
-                % endif
 
             </ul>
         </section>
