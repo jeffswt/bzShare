@@ -655,7 +655,12 @@ class Filesystem:
         if not item:
             return False
         # Parse permission information
-        return item.chmod(perm)
+        ret = item.chmod(perm)
+        if not item.is_dir:
+            self.__update_in_db(item.parent)
+        else:
+            self.__update_in_db(item)
+        return ret
 
     def __chmod_recursive(self, item, perm):
         """Recursively change permissions."""

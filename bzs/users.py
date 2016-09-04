@@ -168,6 +168,8 @@ class UserManagerType:
             raise Exception('User handle must be composed of non-capital letters and digits only.')
         if len(usr_handle) > 32:
             raise Exception('User handle must be no longer than 32 characters.')
+        if usr_handle in self.users:
+            raise Exception('This user handle had already been used. Consider using another one.')
         # Checking password validity
         if not utils.is_safe_string(usr_password, 'letters', 'numbers', 'symbols'):
             raise Exception('Password must be composed of keys that can be retrieved directly from a QWERTY keyboard.')

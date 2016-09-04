@@ -28,7 +28,7 @@ universal_options_list = {
     'server-name': 'Tornado/4.4',
     'server-port': int(os.environ.get('PORT',80)),
     'server-threads': 1,
-    'time-format': '%a %Y/%m/%d, %H:%M:%S',
+    'time-format': '%a %d/%m/%Y, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
     'users-invite-code': os.environ.get('BZS_USERS_INVITE_CODE', '571428'),
     'version': 'r0.24-dev'

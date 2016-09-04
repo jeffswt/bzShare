@@ -212,7 +212,7 @@ class FileStorage:
                         (uuid, size, count, sub_uuid, sub_size, sub_count, sub_hash, sub_content)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s);""", (
                 f_uuid, n_size, 1,
-                [n_uuid], [n_size], [n_count], [n_hash], [content_stream.get_content]
+                [n_uuid], [n_size], [n_count], [n_hash], [content_stream.get_content()]
             ))
             pass
         # Inserting file handle into tree

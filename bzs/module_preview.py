@@ -52,6 +52,7 @@ class PreviewHandler(tornado.web.RequestHandler):
                     file_hash=file_hash,
                     file_name=file_name,
                     file_name_url=urllib.parse.quote(file_name),
+                    file_mime = file_mime,
                     xsrf_form_html=self.xsrf_form_html()
                 )
                 pass

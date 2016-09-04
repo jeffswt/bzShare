@@ -12,10 +12,7 @@ access your OI materials anywhere, anytime.
 ## Functionalities
 
  - Sharing files with explicit ownership
- - <del>Chat with your friends or in groups</del>
- - <del>Announce your daily events on the timeline</del>
  - <del>Discuss and solve problems on forums</del>
- - <del>Train your coding skills on the online judge</del>
 
 ## Screenshots
 
@@ -37,10 +34,8 @@ All screenshots were taken on a Google Chrome.
 
 # Todo List
 
-  - [x] Implement a working user management module with permission management limiting file and folder access from users.
-  - [ ] Improve sparsed file performance by implementing element re-use methods, thereby improving deletion speed. Copy and moving speed are virtually neglectible. Saving another array to store those nodes which have been removed can be very useful, therefore filling up the blanks.
   - [ ] Use an asynchronous model for filesystem management, returning progress to the web client whenever called. Progress bars should be implemented in the user interface.
-  - [ ] Multithread the SQLFS manager in order to make it asynchronously link with the web server.
+  - [ ] <del>Multithread the SQLFS manager in order to make it asynchronously link with the web server.</del>
 
 # Special Thanks
 
