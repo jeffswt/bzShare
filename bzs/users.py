@@ -8,56 +8,56 @@ from . import db
 from . import utils
 from . import sqlfs
 
-class UserManagerType:
-    class User:
-        """A user that acts as a fundamental functional group in bzShare."""
-        def __init__(self, handle=None, password=None, usergroups=None, usr_name=None, usr_description=None, master=None):
-            self.master          = master # Parent
-            # User handle, composed only of non-capital letters, numbers and underline,
-            # While not exceeding the limit of 32-byte length
-            self.handle          = handle or 'guest'
-            # Password is defaultly set to blank.
-            self.password        = password or ''
-            # A group of usergroups that the user belongs to.
-            self.usergroups      = usergroups or {'public'}
-            # Cookies that are used to login.
-            self.cookie          = None
-            # IP Addresses that the user used to login.
-            self.ip_addresses    = []
-            # These are a set of user-defined options.
-            self.usr_name        = usr_name or 'Guest'
-            self.usr_description = usr_description or 'The guy who just wanders around.'
-            self.usr_email       = ''
-            # These are a great amount of social linkages.
-            self.followers       = []
-            self.friends         = []
-            # Whether the user is banned.
-            self.banned          = False
-            # Specify data indefinitely or load from pickle pls.
-            return
-        def save_data(self):
-            bin_data = pickle.dumps(self)
-            if not self.master.usr_db.execute("SELECT handle FROM users WHERE handle = %s;", (self.handle,)):
-                self.master.usr_db.execute("INSERT INTO users (handle, data) VALUES (%s, %s);", (self.handle, bin_data))
-            else:
-                self.master.usr_db.execute("UPDATE users SET data = %s WHERE handle = %s;", (bin_data, self.handle))
-            return
-        def login(self):
-            if not self.cookie:
-                self.cookie = utils.get_new_cookie(self.master.users_cookies)
-                self.save_data()
-            return self.cookie
-        def logout(self):
-            if self.cookie:
-                self.cookie = None
-                self.save_data()
-            return
-        def add_ip_address(self, _ip):
-            self.ip_addresses.append(_ip)
-            self.ip_addresses = self.ip_addresses[:16]
-            return
-        pass
+class User:
+    """A user that acts as a fundamental functional group in bzShare."""
+    def __init__(self, handle=None, password=None, usergroups=None, usr_name=None, usr_description=None, master=None):
+        self.master          = master # Parent
+        # User handle, composed only of non-capital letters, numbers and underline,
+        # While not exceeding the limit of 32-byte length
+        self.handle          = handle or 'guest'
+        # Password is defaultly set to blank.
+        self.password        = password or ''
+        # A group of usergroups that the user belongs to.
+        self.usergroups      = usergroups or {'public'}
+        # Cookies that are used to login.
+        self.cookie          = None
+        # IP Addresses that the user used to login.
+        self.ip_addresses    = []
+        # These are a set of user-defined options.
+        self.usr_name        = usr_name or 'Guest'
+        self.usr_description = usr_description or 'The guy who just wanders around.'
+        self.usr_email       = ''
+        # These are a great amount of social linkages.
+        self.followers       = []
+        self.friends         = []
+        # Whether the user is banned.
+        self.banned          = False
+        # Specify data indefinitely or load from pickle pls.
+        return
+    def save_data(self):
+        bin_data = pickle.dumps(self)
+        if not self.master.usr_db.execute("SELECT handle FROM users WHERE handle = %s;", (self.handle,)):
+            self.master.usr_db.execute("INSERT INTO users (handle, data) VALUES (%s, %s);", (self.handle, bin_data))
+        else:
+            self.master.usr_db.execute("UPDATE users SET data = %s WHERE handle = %s;", (bin_data, self.handle))
+        return
+    def login(self):
+        if not self.cookie:
+            self.cookie = utils.get_new_cookie(self.master.users_cookies)
+            self.save_data()
+        return self.cookie
+    def logout(self):
+        if self.cookie:
+            self.cookie = None
+            self.save_data()
+        return
+    def add_ip_address(self, _ip):
+        self.ip_addresses.append(_ip)
+        self.ip_addresses = self.ip_addresses[:16]
+        return
+    pass
 
+class UserManagerType:
     def __init__(self, database=None):
         """Loads user content and configurations from database."""
         if not database:
@@ -82,12 +82,12 @@ class UserManagerType:
             self.add_user(n_usr)
         # In case someone is missing... :)
         if 'guest' not in self.users:
-            n_usr = self.User(master=self)
+            n_usr = User(master=self)
             self.add_user(n_usr)
             n_usr.save_data()
         # Adding superusers
         if 'kernel' not in self.users:
-            n_usr = self.User(
+            n_usr = User(
                 handle = 'kernel',
                 password = const.get_const('server-admin-password'),
                 usergroups = {'public'},
@@ -186,7 +186,7 @@ class UserManagerType:
         if len(usr_desc) > 128:
             raise Exception('Your user description should not exceed 128 characters.')
         # Creating user account
-        usr = self.User(
+        usr = User(
             handle=usr_handle,
             password=usr_password,
             usr_name=usr_name,
