@@ -137,7 +137,7 @@ var bzsReloadMainframeRefresh = function() {
     bzsReloadMainframeSeamless(bzsReloadMainframeLastAccess);
     return ;
 }
-// bzsReloadMainframeRefresh();
+bzsReloadMainframeRefresh();
 
 var bzsReloadMainIndex = function() {
     $('#bzs-index-main-header').load('/ #bzs-index-main-header');
@@ -145,7 +145,7 @@ var bzsReloadMainIndex = function() {
         $('[data-href]').click(bzsReloadMainframe);
         return ;
     });
-    $('#bzs-index-main-footer').load('/ #bzs-index-main-footer');
+    // $('#bzs-index-main-footer').load('/ #bzs-index-main-footer');
     $('#bzs-index-scripts').load('/ #bzs-index-scripts');
     bzsReloadMainframeRefresh();
     return ;
@@ -245,6 +245,17 @@ var bzsDialogTemplateLoad = function(target) {
     });
     return ;
 }
+
+var bzsDialogLoadingLoad = function(title) {
+    $('#dialog-template-container-content').html('<div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">' + title + '</h4></div><div class="modal-body"><p>Please do not close this dialog while the server processes the operation.</p><div class="progress active"><div class="progress-bar progress-bar-primary progress-bar-striped" style="width:100%"></div></div></div>');
+    $('#dialog-template-container').modal('show');
+    return ;
+};
+
+var bzsDialogLoadingUnload = function() {
+    $('#dialog-template-container').modal('hide');
+    return ;
+};
 
 /*
  * Other various tweaks

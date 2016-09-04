@@ -130,7 +130,7 @@
                                         </button>
                                         <ul class="dropdown-menu">
                                             % if attrib['writable']:
-                                            <li><a data-toggle="modal" data-target="#dialog-input-string-container" href="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)"><span class="ion ion-edit" style="font-size:20px; height:30px"></span>Rename Object</a></li>
+                                            <li><a data-toggle="modal" data-target="#dialog-input-string-container" onclick="javascript:bzsDialogInputStringLoad('Rename file', '${attrib['file-name-escaped']}', '/files/operation', '${attrib['uuid']}', bzsFilesMarkRename)" href="#"><span class="ion ion-edit" style="font-size:20px; height:30px"></span>Rename Object</a></li>
                                             % endif
                                             % if attrib['mime-type'] != 'directory/folder':
                                             <li><a data-href="${attrib['preview-link']}" href="#"><span class="ion ion-image" style="font-size:20px; height:30px"></span>Preview File</a></li>
