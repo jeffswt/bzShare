@@ -4,6 +4,8 @@ import io
 import threading
 import uuid as uuid_package
 
+from . import file_stream
+
 class FileStorage:
     """This is a storage system built for bzs.sqlfs.file_system.Filesystem,
     which handles files for Filesystem, large files directly use LOBJECT, and
@@ -75,7 +77,7 @@ class FileStorage:
         self.st_hash_algo        = hashlib.sha256 # Hashing algorithm, could be md5, sha1, sha224, sha256, sha384, sha512, while sha384 and sha512 are not recommended due to slow speeds on 32-bit computers
         self.st_sparse_limit     = 16 * 1024 * 1024 # Create new sparse row if sparse row exceeded 16 MB
         self.st_sparse_cnt_limit = 256 # No more than 256 files would appear in one sparse row
-        self.st_sparse_size      = 2 * 1024 * 1024 # Files under 2 MB would be considered sparse
+        self.st_sparse_size      = file_stream.sparse_size # Import from filestream manager
         # These are large files we are talking about.
         for item in self.st_db.execute("SELECT uuid, size, count, hash FROM file_storage;"):
             s_uuid, s_size, s_count, s_hash = item
@@ -100,6 +102,23 @@ class FileStorage:
             continue
         # Content would be ignored and later retrieved from SQL database.
         return
+
+    def __add_unique_file(self, uuid):
+        if uuid not in self.st_uuid_idx:
+            return False
+        fl = self.st_uuid_idx[uuid]
+        fl.count += 1
+        if fl.sparse_uuid:
+            self.st_db.execute("""
+                UPDATE file_storage_sparse SET sub_count[%s] = %s WHERE uuid = %s""",
+                (fl.sparse_index, fl.count, fl.sparse_uuid
+            ))
+        else:
+            self.st_db.execute("""
+                UPDATE file_storage SET count = %s WHERE uuid = %s""",
+                (fl.count, fl.uuid
+            ))
+        return True
 
     def __new_unique_file_sparse(self, n_uuid, n_size, n_count, n_hash, content):
         """Creates a UniqueFile that is a sparsed file, which should be
@@ -186,23 +205,6 @@ class FileStorage:
         self.st_uuid_idx[n_uuid] = u_fl
         self.st_hash_idx[n_hash] = u_fl
         return n_uuid
-
-    def __add_unique_file(self, uuid):
-        if uuid not in self.st_uuid_idx:
-            return False
-        fl = self.st_uuid_idx[uuid]
-        fl.count += 1
-        if fl.sparse_uuid:
-            self.st_db.execute("""
-                UPDATE file_storage_sparse SET sub_count[%s] = %s WHERE uuid = %s""",
-                (fl.sparse_index, fl.count, fl.sparse_uuid
-            ))
-        else:
-            self.st_db.execute("""
-                UPDATE file_storage SET count = %s WHERE uuid = %s""",
-                (fl.count, fl.uuid
-            ))
-        return True
 
     def __new_unique_file(self, content):
         """Creates a UniqueFile, and returns its UUID."""
