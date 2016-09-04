@@ -27,7 +27,9 @@ class FileStream:
             self.content_obj = self.content_conn.lobject(obj_oid, 'rb' if mode == 'read' else 'wb')
             self.content_oid = self.content_obj.oid
             self.mode = mode
-            self.length = 0
+            self.content_obj.seek(0, 2)
+            self.length = self.content_obj.tell()
+            self.content_obj.seek(0, 0)
             self.is_sparse = False
         self.est_length = est_length
         self.closed = False
@@ -76,7 +78,7 @@ class FileStream:
         else:
             self.content_conn = self.db.execute_raw()
             self.content_cur = self.content_conn.cursor()
-            self.content_obj = self.content_conn.lobject(self.content_oid)
+            self.content_obj = self.content_conn.lobject(self.content_oid, 'rb')
             self.est_length = self.length
         self.closed = False
         self.mode = 'read'

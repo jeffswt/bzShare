@@ -151,20 +151,19 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
 
         future = tornado.concurrent.Future()
         def inquire_data_async(working_user):
-            _tf_data = sqlfs.get_content(file_path, user=working_user)
-            future.set_result(_tf_data)
+            file_stream = sqlfs.get_content(file_path, user=working_user)
+            future.set_result(file_stream)
         tornado.ioloop.IOLoop.instance().add_callback(
             inquire_data_async, working_user)
-        file_data = yield future
-        file_stream = io.BytesIO(file_data)
+        file_stream = yield future
 
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'application/x-download')
-        self.add_header('Content-Length', str(len(file_data)))
+        self.add_header('Content-Length', file_stream.length)
 
-        while file_stream.tell() < len(file_data):
+        while file_stream.tell() < file_stream.length:
             byte_pos = file_stream.tell()
             # Entry to the concurrency worker
             future = tornado.concurrent.Future()
@@ -261,8 +260,23 @@ class FilesOperationHandler(tornado.web.RequestHandler):
 
 ################################################################################
 
+@tornado.web.stream_request_body
 class FilesUploadHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['POST']
+
+    def prepare(self):
+        """Creates file handle to write on."""
+        content_length = self.request.headers['Content-Length']
+        self.file_handle = sqlfs.create_file_handle(
+            mode       = 'write',
+            est_length = int(content_length)
+        )
+        # Done creating handle, proceeding.
+        return
+
+    def data_received(self, chunk):
+        """Makes receival and push changes to handle."""
+        self.file_handle.write(chunk)
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
@@ -274,12 +288,10 @@ class FilesUploadHandler(tornado.web.RequestHandler):
             self.get_cookie('user_active_login', default=''))
 
         def save_file_async(alter_ego, target_path, file_name, working_user):
-            upload_data = alter_ego.request.body
-            # Crucial, to release data.
-            alter_ego.request.body = None
+            self.file_handle.close()
             target_path = utils.decode_hexed_b64_to_str(target_path)
             # Committing changes to database
-            sqlfs.create_file(target_path, file_name, upload_data, user=working_user)
+            sqlfs.create_file(target_path, file_name, self.file_handle, user=working_user)
             # Final return
             future.set_result('bzs_upload_success')
         tornado.ioloop.IOLoop.instance().add_callback(save_file_async,

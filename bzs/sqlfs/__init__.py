@@ -29,6 +29,17 @@ FilesystemPermissions = file_system_permissions.FilesystemPermissions(
 ################################################################################
 # Exported file-system functions, thread-safe, permission-safe.
 
+def create_file_handle(mode='read', est_length=1024**8, obj_oid=0, obj_data=b''):
+    """Returns a new file stream object which does nothing to the filesystem
+    unless been invoked to be injected into filesystem."""
+    return file_stream.FileStream(
+        mode=mode,
+        est_length=est_length,
+        obj_oid=obj_oid,
+        obj_data=obj_data,
+        database=db.Database)
+    pass
+
 def create_file(path_parent, file_name, content_stream, user=None):
     """Inject object into filesystem, while passing in content. The content
     itself would be indexed in FileStorage. If 'path-parent' is not writable,
@@ -158,7 +169,7 @@ def get_content(path, user):
     """Gets binary content of the object (must be file) and returns the
     actual content in bytes."""
     if user and not FilesystemPermissions.readable(path, user):
-        return b''
+        return file_stream.EmptyFileStream
     ret_result = Filesystem.get_content(path)
     return ret_result
 
