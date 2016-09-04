@@ -119,7 +119,7 @@ class FilesListHandler(tornado.web.RequestHandler):
         self.write(file_temp)
         self.flush()
         self.finish()
-        return self
+        return
 
     head=get
     pass
@@ -157,14 +157,27 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
             inquire_data_async, working_user)
         file_stream = yield future
 
-        self.set_status(200, "OK")
+        # Detecting sent receival of ranges
+        try:
+            recv_range_str = re.sub('bytes=', '', self.request.headers['Range'])
+            recv_range_tuple = recv_range_str.split('-')
+            recv_range = int(recv_range_tuple[0])
+        except:
+            recv_range = 0
+
+        if recv_range <= 0:
+            self.set_status(200, "OK")
+        else:
+            self.set_status(206, "Partial Content")
+        self.add_header('Accept-Ranges', 'bytes')
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
         self.add_header('Content-Type', 'application/x-download')
-        self.add_header('Content-Length', file_stream.length)
+        self.add_header('Content-Length', file_stream.length - recv_range)
+        self.add_header('Content-Range', '%d-' % recv_range)
 
+        file_stream.seek(recv_range, 0)
         while file_stream.tell() < file_stream.length:
-            byte_pos = file_stream.tell()
             # Entry to the concurrency worker
             future = tornado.concurrent.Future()
             # Concurrent worker
@@ -176,17 +189,14 @@ class FilesDownloadHandler(tornado.web.RequestHandler):
             # Reset or read
             file_block = yield future
             self.write(file_block)
-            file_block = None
             self.flush()
-        file_block = None
         self.finish()
 
         # Release memory...
         file_stream = None
         file_data = None
-        return self
+        return
 
-    head=get
     pass
 
 ################################################################################
@@ -255,7 +265,7 @@ class FilesOperationHandler(tornado.web.RequestHandler):
         self.write(file_temp)
         self.flush()
         self.finish()
-        return self
+        return
     pass
 
 ################################################################################
@@ -308,5 +318,5 @@ class FilesUploadHandler(tornado.web.RequestHandler):
         self.write(response_temp)
         self.flush()
         self.finish()
-        return self
+        return
     pass
