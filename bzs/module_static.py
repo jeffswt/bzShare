@@ -29,7 +29,7 @@ class StaticHandler(tornado.web.RequestHandler):
         self._headers = tornado.httputil.HTTPHeaders()
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
-        self.add_header('Content-Type', utils.guess_mime_type(file_path))
+        self.set_header('Content-Type', utils.guess_mime_type(file_path))
         self.add_header('Content-Length', str(len(file_data)))
 
         # Push result to client in one blob

@@ -88,7 +88,7 @@ class PreviewHandler(tornado.web.RequestHandler):
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
-        self.add_header('Content-Type', 'text/html')
+        self.set_header('Content-Type', 'text/html; charset=UTF-8')
         self.add_header('Content-Length', str(len(file_data)))
 
         # Push result to client in one blob
