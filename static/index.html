@@ -55,37 +55,35 @@
                     <li class="dropdown user user-menu">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                             <img src="/static/dist/img/user-guest.jpg" class="user-image" alt="User Image">
-                            <span class="hidden-xs">${current_user_name}</span>
+                            <span class="hidden-xs">${current_user.usr_name}</span>
                         </a>
                         <ul class="dropdown-menu">
                             <!-- User image -->
                             <li class="user-header">
                                 <img src="/static/dist/img/user-guest.jpg" class="img-circle" alt="User Image">
                                 <p>
-                                    ${current_user_name}
-                                    <small>${current_user_description}</small>
+                                    ${current_user.usr_name}
+                                    <small>${current_user.usr_description}</small>
                                 </p>
                             </li>
                             <!-- Menu Body -->
                             <li class="user-body">
                                 <div class="row">
                                     <div class="col-xs-4 text-center">
-                                        <a href="#">Friends</a>
-                                    </div>
-                                    <div class="col-xs-4 text-center">
                                     </div>
                                     <div class="col-xs-4 text-center">
                                         <a href="#">Group</a>
                                     </div>
+                                    <div class="col-xs-4 text-center">
+                                    </div>
                                 </div>
                                 <div class="row">
                                     <div class="col-xs-4 text-center">
-                                        <a href="#">${current_user_friends}</a>
                                     </div>
                                     <div class="col-xs-4 text-center">
+                                        <a href="#">${len(current_user.usergroups)}</a>
                                     </div>
                                     <div class="col-xs-4 text-center">
-                                        <a href="#">${current_user_groups}</a>
                                     </div>
                                 </div>
                                 <!-- /.row -->
@@ -125,7 +123,7 @@
                     <img src="/static/dist/img/user-guest.jpg" class="img-circle" alt="User Image">
                 </div>
                 <div class="pull-left info">
-                    <p>${current_user_name}</p>
+                    <p>${current_user.usr_name}</p>
                     <a href="#"><i class="fa fa-circle text-success"></i> Online</a>
                 </div>
             </div>
@@ -202,7 +200,7 @@
                     </a>
                     <ul class="treeview-menu">
                         <li>
-                            <a href="#" data-href="/settings/profile">
+                            <a href="#" data-href="/settings/profile/${current_user.handle}">
                                 <i class="fa fa-circle-o"></i>
                                 Profile
                             </a>
@@ -218,6 +216,12 @@
                             <a href="#" data-href="/settings/account-management">
                                 <i class="fa fa-circle-o"></i>
                                 Account Management
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" data-href="/settings/dynamic-interface">
+                                <i class="fa fa-circle-o"></i>
+                                Dynamic Interface
                             </a>
                         </li>
                         % endif

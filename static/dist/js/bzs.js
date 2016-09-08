@@ -238,11 +238,16 @@ var bzsDialogInputStringLoad = function(title, placeholder, action, uuid, callba
     bzsDialogInputStringLoadCallback_Callback = callback;
     return true;
 }
+
 var bzsDialogTemplateLoad = function(target) {
     $('#dialog-template-container-content').load(target, function() {
         $('#dialog-template-container').modal('show');
         return ;
     });
+    return ;
+}
+var bzsDialogTemplateUnload = function() {
+    $('#dialog-template-container').modal('hide');
     return ;
 }
 
@@ -251,7 +256,6 @@ var bzsDialogLoadingLoad = function(title) {
     $('#dialog-template-container').modal('show');
     return ;
 };
-
 var bzsDialogLoadingUnload = function() {
     $('#dialog-template-container').modal('hide');
     return ;

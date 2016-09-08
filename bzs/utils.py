@@ -80,12 +80,7 @@ def preprocess_webpage(data, content_user, **additional_arguments):
             placeholder_copyright_message = const.get_const('copyright'),
             user_is_administrator = content_user.handle == 'kernel',
             user_is_standard_user = content_user.handle != 'guest',
-            current_user_name = content_user.usr_name,
-            current_user_description = content_user.usr_description,
-            current_user_followers = len(content_user.followers),
-            current_user_friends = len(content_user.friends),
-            current_user_usergroups = content_user.usergroups,
-            current_user_groups = len(content_user.usergroups),
+            current_user = content_user,
             **additional_arguments if additional_arguments else dict()
         )
     return data
