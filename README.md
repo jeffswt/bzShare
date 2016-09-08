@@ -35,7 +35,7 @@ All screenshots were taken on a Google Chrome.
 # Todo List
 
   - [ ] Use an asynchronous model for filesystem management, returning progress to the web client whenever called. Progress bars should be implemented in the user interface.
-  - [ ] <del>Multithread the SQLFS manager in order to make it asynchronously link with the web server.</del>
+  - [ ] Use GZip encoding while transporting data for the sake of reducing network latency.
 
 # Special Thanks
 

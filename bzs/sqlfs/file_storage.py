@@ -240,29 +240,6 @@ class FileStorage:
         u_fl = self.UniqueFile(n_uuid, n_size, n_count, n_hash, master=self)
         # Done indexing, now proceeding to process content into SQL (RAW)
         self.st_db.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, %s)", (n_uuid, n_size, n_count, n_hash, content_stream.get_content()))
-        # with self.st_db.execute_raw() as db:
-        #     with db.cursor() as cur:
-        #         # Insert metadata only, for memory conservation
-        #         cur.execute("INSERT INTO file_storage (uuid, size, count, hash, content) VALUES (%s, %s, %s, %s, lo_from_bytea(0, E'\\x'));", (n_uuid, n_size, n_count, n_hash))
-        #         db.commit()
-        #         # Select the last object we just inserted
-        #         cur.execute("SELECT content FROM file_storage WHERE uuid = %s;", (n_uuid,))
-        #         n_oid = cur.fetchone()[0] # Retrieved large object descriptor
-        #         db.commit()
-        #         # Making psycopg2.extensions.lobject (Large Object)
-        #         n_lobj = db.lobject(n_oid, 'wb')
-        #         # Writing changes to database object
-        #         f_stream = io.BytesIO(content)
-        #         chunk_size = 512 * 1024 # Chunk size of 64 KB
-        #         # Continuously writing to target
-        #         while True:
-        #             chunk = f_stream.read(chunk_size)
-        #             n_lobj.write(chunk)
-        #             if len(chunk) < chunk_size:
-        #                 break
-        #         n_lobj.close()
-        #         f_stream.close()
-        #         db.commit()
         # Injecting file into main indexer
         self.st_uuid_idx[n_uuid] = u_fl
         self.st_hash_idx[n_hash] = u_fl
@@ -383,29 +360,7 @@ class FileStorage:
             obj_oid=cont_oid,
             database=self.st_db
         )
-
-        # with self.st_db.execute_raw() as db:
-        #     with db.cursor() as cur:
-        #         # Insert metadata only, for memory conservation
-        #         cur.execute("SELECT content FROM file_storage WHERE uuid = %s", (u_fl.uuid,))
-        #         db.commit()
-        #         try:
-        #             f_oid = cur.fetchone()[0] # Retrieved large object descriptor
-        #         except: # Not in database
-        #             return b''
-        #         db.commit()
-        #         # Making psycopg2.extensions.lobject (Large Object)
-        #         f_lobj = db.lobject(f_oid, 'rb')
-        #         # Writing query results to result
-        #         chunk_size = 2 * 1024 * 1024 # Chunk size of 2 MB
-        #         # Continuously reading from target
-        #         while True:
-        #             chunk = f_lobj.read(chunk_size)
-        #             content += chunk
-        #             if len(chunk) < chunk_size:
-        #                 break
-        #         f_lobj.close()
-        #         db.commit()
+        # Return data stream.
         return content_stream
 
     """Exported functions that are commonly available."""

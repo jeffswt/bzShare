@@ -49,21 +49,17 @@ class DatabaseType:
             return True
         print('Initializing PostgreSQL database.')
         # Purge database of obsolete tables
-        self.execute("""
-            DROP TABLE IF EXISTS core;
-        """)
-        self.execute("""
-            DROP TABLE IF EXISTS users;
-        """)
-        self.execute("""
-            DROP TABLE IF EXISTS file_storage;
-        """)
-        self.execute("""
-            DROP TABLE IF EXISTS file_storage_sparse;
-        """)
-        self.execute("""
-            DROP TABLE IF EXISTS file_system;
-        """)
+        all_databases = [
+            'core',
+            'users',
+            'usergroups',
+            'forums',
+            'file_storage',
+            'file_storage_sparse',
+            'file_system'
+        ]
+        for nam in all_databases:
+            self.execute("DROP TABLE IF EXISTS %s;" % (nam,))
         # Creating new tables in order to function
         # TIMESTAMPs has lower precision than DOUBLE, so we are using DOUBLE PRECISION instead.
         self.execute("""
@@ -74,6 +70,18 @@ class DatabaseType:
             CREATE TABLE users (
                 handle      TEXT,
                 data        BYTEA
+            );
+            CREATE TABLE usergroups (
+                handle      TEXT,
+                data        BYTEA
+            );
+            CREATE TABLE forums (
+                uuid        TEXT,
+                title       TEXT,
+                origin      TEXT,
+                sub_handle  TEXT,
+                sub_time    TEXT,
+                sub_content TEXT
             );
             CREATE TABLE file_storage (
                 uuid        UUID,
@@ -104,7 +112,11 @@ class DatabaseType:
             );
         """)
         # Marking this database as initialized
-        self.execute("INSERT INTO core (index, data) VALUES ('db_initialized', %s)", (b'\x80\x03\x88\x2E',))
+        self.execute("INSERT INTO core (index, data) VALUES ('db_initialized', %s)",
+            (b'\x80\x03\x88\x2E',))
+        # Create verbose things
+        self.execute("INSERT INTO core (index, data) VALUES ('db_home_info', %s)",
+            (b'\x80\x03X\x00\x00\x00\x00q\x00.',))
         return True
     pass
 
