@@ -1,0 +1,127 @@
+<section class="content">
+
+    <div class="row">
+        <div class="col-md-3">
+
+            <!-- Profile Image -->
+            <div class="box box-primary">
+                <div class="box-body box-profile">
+                    <img class="profile-user-img img-responsive img-circle" src="../../dist/img/user4-128x128.jpg" alt="User profile picture">
+
+                    <h3 class="profile-username text-center">${this_user.usr_name}</h3>
+
+                    <p class="text-muted text-center"><b>bzShare</b> User</p>
+
+                    <ul class="list-group list-group-unbordered">
+                        <li class="list-group-item">
+                            <b>Groups</b> <a class="pull-right">${len(this_user.usergroups)}</a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- /.box-body -->
+            </div>
+            <!-- /.box -->
+
+            <!-- About Me Box -->
+            <div class="box box-primary">
+                <div class="box-header with-border">
+                    <h3 class="box-title">About This User</h3>
+                </div>
+                <!-- /.box-header -->
+                <div class="box-body">
+                    <strong><i class="fa fa-file-text-o margin-r-5"></i> Description</strong>
+                    <p>${this_user.usr_description}</p>
+                </div>
+                <!-- /.box-body -->
+            </div>
+            <!-- /.box -->
+        </div>
+        <!-- /.col -->
+        <div class="col-md-9">
+            <div class="nav-tabs-custom">
+                <ul class="nav nav-tabs">
+                    <li class="active"><a href="#account-settings" data-toggle="tab">Account Settings</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="active tab-pane" disabled="disabled" id="account-settings">
+                        <form id="account-settings-form" class="form-horizontal">
+                            <div class="form-group">
+                                <label for="inputHandle" class="col-sm-2 control-label">Handle</label>
+                                <div class="col-sm-10">
+                                    <input type="email" class="form-control" disabled="disabled" id="inputHandle" name="handle" placeholder="${this_user.handle}">
+                                </div>
+                            </div>
+                            % if this_user_editable:
+                            <div class="form-group">
+                                <label for="inputPassword" class="col-sm-2 control-label">Password</label>
+                                <div class="col-sm-10">
+                                    <input type="password" class="form-control" ${'disabled="disabled"' if not this_user_editable else ''} id="inputPassword" name="password" placeholder="Password" value="${this_user.password}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputPasswordRecheck" class="col-sm-2 control-label">Retype Password</label>
+                                <div class="col-sm-10">
+                                    <input type="password" class="form-control" ${'disabled="disabled"' if not this_user_editable else ''} id="inputPasswordRecheck" name="password-recheck" placeholder="Retype Password" value="${this_user.password}">
+                                </div>
+                            </div>
+                            % endif
+                            <div class="form-group">
+                                <label for="inputName" class="col-sm-2 control-label">Name</label>
+                                <div class="col-sm-10">
+                                    <input type="text" class="form-control" ${'disabled="disabled"' if not this_user_editable else ''} id="inputName" name="username" placeholder="Name" value="${this_user.usr_name}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="inputDescription" class="col-sm-2 control-label">Description</label>
+                                <div class="col-sm-10">
+                                    <textarea class="form-control" ${'disabled="disabled"' if not this_user_editable else ''} id="inputDescription" name="description" style="height: 120px; resize: none;" placeholder="Description">${this_user.usr_description}</textarea>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="col-sm-offset-2 col-sm-10">
+                                    <button type="submit" class="btn btn-danger" ${'disabled="disabled"' if not this_user_editable else ''}>Submit</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- /.tab-pane -->
+                </div>
+                <!-- /.tab-content -->
+            </div>
+            <!-- /.nav-tabs-custom -->
+        </div>
+        <!-- /.col -->
+    </div>
+    <!-- /.row -->
+
+</section>
+<!-- /.content -->
+
+<script>
+var bzsSettingsUpdateProfile = function(event) {
+    event.preventDefault();
+    // Sorting data
+    var form_source = $(this).serializeArray();
+    var form_data = {};
+    for (var i = 0; i < form_source.length; i++)
+        form_data[form_source[i]['name']] = form_source[i]['value'];
+    // Done sorting data, proceeding to upload
+    $.ajax({
+        method: "POST",
+        url: "/settings/profile_edit/${this_user.handle}",
+        data: JSON.stringify(form_data),
+        dataType: "json",
+        complete: function(data) {
+            event.preventDefault();
+            $('#dialog-template-container-content').html(data.responseText);
+            $('#dialog-template-container').modal('show');
+            bzsReloadMainframeRefresh();
+            bzsReloadMainIndex();
+            return ;
+        }
+    });
+    return ;
+};
+$('#account-settings-form').submit(bzsSettingsUpdateProfile);
+
+</script>

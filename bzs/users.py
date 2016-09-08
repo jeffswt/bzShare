@@ -21,15 +21,9 @@ class User:
         self.usergroups      = usergroups or {'public'}
         # Cookies that are used to login.
         self.cookie          = None
-        # IP Addresses that the user used to login.
-        self.ip_addresses    = []
         # These are a set of user-defined options.
         self.usr_name        = usr_name or 'Guest'
         self.usr_description = usr_description or 'The guy who just wanders around.'
-        self.usr_email       = ''
-        # These are a great amount of social linkages.
-        self.followers       = []
-        self.friends         = []
         # Whether the user is banned.
         self.banned          = False
         # Specify data indefinitely or load from pickle pls.
@@ -51,9 +45,30 @@ class User:
             self.cookie = None
             self.save_data()
         return
-    def add_ip_address(self, _ip):
-        self.ip_addresses.append(_ip)
-        self.ip_addresses = self.ip_addresses[:16]
+    pass
+
+class Usergroup:
+    """A usergroup that contains people from userspace / kernel."""
+    def __init__(self, handle=None, admin=None, name=None, master=None):
+        self.master  = master
+        self.handle  = handle
+        self.admin   = admin
+        self.name    = name
+        self.members = set()
+        return
+    def add_member(self, mem):
+        if mem not in self.members:
+            self.members.add(mem)
+        return
+    def remove_member(self, mem):
+        if mem in self.members and mem != self.admin:
+            self.members.remove(mem)
+        return
+    def save_data(self):
+        bin_data = pickle.dumps(self)
+        if not self.master.usr_db.execute("SELECT handle FROM usergroups WHERE handle = %s;", (self.handle,)):
+            self.master.usr_db.execute("INSERT INTO usergroups (handle, data) VALUES (%s, %s);", (self.handle, bin_data))
+        self.master.usr_db.execute("UPDATE usergroups SET data = %s WHERE handle = %s;", (bin_data, self.handle))
         return
     pass
 
@@ -148,6 +163,38 @@ class UserManagerType:
             del self.users_cookies[usr.cookie]
         return usr.logout()
 
+    def create_user_check_handle(self, usr_handle):
+        if not utils.is_safe_string(usr_handle, 'letters_alpha', 'numbers'):
+            raise Exception('User handle must be composed of non-capital letters and digits only.')
+        if len(usr_handle) > 32 or len(usr_handle) < 3:
+            raise Exception('User handle must has the length within the range of 3 letters to 32 letters.')
+        if usr_handle in self.users:
+            raise Exception('This user handle had already been used. Consider using another one.')
+        return usr_handle
+
+    def create_user_check_password(self, usr_password, usr_password_recheck):
+        if not utils.is_safe_string(usr_password, 'letters', 'numbers', 'symbols'):
+            raise Exception('Password must be composed of keys that can be retrieved directly from a QWERTY keyboard.')
+        if len(usr_password) > 64 or len(usr_password) < 6:
+            raise Exception('Password does not meet required length (6 letters to 64 letters)')
+        if usr_password != usr_password_recheck:
+            raise Exception('The two passwords you have typed in does not match.')
+        return usr_password
+
+    def create_user_check_username(self, usr_name):
+        if utils.is_unsafe_string(usr_name, 'html_escape'):
+            raise Exception('Your name should not contain HTML escape characters.')
+        if len(usr_name) > 32:
+            raise Exception('Your name should not exceed 32 characters.')
+        return usr_name
+
+    def create_user_check_description(self, usr_desc):
+        if utils.is_unsafe_string(usr_desc, 'html_escape'):
+            raise Exception('Your user description should not contain HTML escape characters.')
+        if len(usr_desc) > 128:
+            raise Exception('Your user description should not exceed 128 characters.')
+        return usr_desc
+
     def create_user(self, json_data):
         try:
             usr_invitecode = json_data['invitecode']
@@ -164,29 +211,13 @@ class UserManagerType:
         if usr_invitecode != const.get_const('users-invite-code'):
             raise Exception('Erroneous invitation code given, you are not authorized to access this functionality.')
         # Checking handle validity
-        if not utils.is_safe_string(usr_handle, 'letters_alpha', 'numbers'):
-            raise Exception('User handle must be composed of non-capital letters and digits only.')
-        if len(usr_handle) > 32:
-            raise Exception('User handle must be no longer than 32 characters.')
-        if usr_handle in self.users:
-            raise Exception('This user handle had already been used. Consider using another one.')
+        self.create_user_check_handle(usr_handle)
         # Checking password validity
-        if not utils.is_safe_string(usr_password, 'letters', 'numbers', 'symbols'):
-            raise Exception('Password must be composed of keys that can be retrieved directly from a QWERTY keyboard.')
-        if len(usr_password) > 64 or len(usr_password) < 6:
-            raise Exception('Password does not meet required length (6 letters to 64 letters)')
-        if usr_password != usr_password_recheck:
-            raise Exception('The two passwords you have typed in does not match.')
+        self.create_user_check_password(usr_password, usr_password_recheck)
         # Checking user name validity
-        if utils.is_unsafe_string(usr_name, 'html_escape'):
-            raise Exception('Your name should not contain HTML escape characters.')
-        if len(usr_name) > 32:
-            raise Exception('Your name should not exceed 32 characters.')
+        self.create_user_check_username(usr_name)
         # Checking description validity.
-        if utils.is_unsafe_string(usr_desc, 'html_escape'):
-            raise Exception('Your user description should not contain HTML escape characters.')
-        if len(usr_desc) > 128:
-            raise Exception('Your user description should not exceed 128 characters.')
+        self.create_user_check_description(usr_desc)
         # Creating user account
         usr = User(
             handle=usr_handle,

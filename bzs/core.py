@@ -20,6 +20,7 @@ from . import module_files
 from . import module_home
 from . import module_index
 from . import module_preview
+from . import module_settings
 from . import module_static
 from . import module_user
 
@@ -34,14 +35,17 @@ def main():
             # (r'/static/(.*)', tornado.web.StaticFileHandler, {
             #     "path": "./static/" # Optimized static file handler with cache
             # }),
-            (r'^/home', module_home.HomeHandler),
+            (r'^/home/?', module_home.HomeHandler),
             (r'^/files/?()$', module_files.FilesListHandler),
-            (r'^/files/list/(.*)', module_files.FilesListHandler),
+            (r'^/files/list/(.*)/?', module_files.FilesListHandler),
             (r'^/files/download/(.*)/(.*)/?$', module_files.FilesDownloadHandler),
-            (r'^/files/upload/(.*)/(.*)$', module_files.FilesUploadHandler),
+            (r'^/files/upload/(.*)/(.*)/?$', module_files.FilesUploadHandler),
             (r'^/files/operation/?', module_files.FilesOperationHandler),
-            (r'^/user/(.*)$', module_user.UserActivityHandler),
             (r'^/preview/(.*?)/(.*)/?$', module_preview.PreviewHandler),
+            (r'^/user/(.*)/?$', module_user.UserActivityHandler),
+            (r'^/settings/profile/(.*)/?$', module_settings.ProfileHandler),
+            (r'^/settings/profile_edit/(.*)/?$', module_settings.ProfileEditHandler),
+            (r'^/settings/usergroups/?$', module_settings.UsergroupHandler),
             (r'.*', module_error404.Error404Handler)
         ],
         xsrf_cookies=False # True to prevent CSRF third party attacks
