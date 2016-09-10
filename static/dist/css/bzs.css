@@ -1,0 +1,92 @@
+
+@media (max-width: 767px) {
+  .hide-on-tablets {
+    visibility: hidden;
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .show-on-tablets {
+    visibility: hidden;
+    display: none;
+  }
+}
+
+@media (max-width: 450px) {
+  .hide-on-phones {
+    visibility: hidden;
+    display: none;
+  }
+}
+
+@media (min-width: 451px) {
+  .show-on-phones {
+    visibility: hidden;
+    display: none;
+  }
+}
+
+@media (max-width: 350px) {
+  .hide-on-small-phones {
+    visibility: hidden;
+    display: none;
+  }
+}
+
+@media (min-width: 351px) {
+  .show-on-small-phones {
+    visibility: hidden;
+    display: none;
+  }
+}
+
+.fill-content-area {
+  position: absolute;
+  overflow: hidden;
+  border: hidden;
+  top: 0px;
+  right: 0px;
+  bottom: 0px;
+  left: 0px;
+  width: 100%;
+  height: calc(100vh - 50px);
+}
+
+@keyframes fadeInAnimation {
+  0% {
+    transform: perspective(200px);
+    transition-timing-function: ease-in;
+    opacity: 0;
+  }
+  100% {
+    transform: perspective(400px);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOutAnimation {
+  0% {
+    transform: perspective(400px);
+    transition-timing-function: ease-out;
+    opacity: 1;
+  }
+  100% {
+    transform: perspective(200px);
+    opacity: 0;
+  }
+}
+
+.open > .animated-dropdown-menu-2 {
+  backface-visibility: visible !important;
+  -webkit-animation: fadeInAnimation 0.3s both;
+  -o-animation: fadeInAnimation 0.3s both;
+  animation: fadeInAnimation 0.3s both;
+}
+
+.close > .animated-dropdown-menu-2 {
+  backface-visibility: visible !important;
+  -webkit-animation: fadeOutAnimation 0.3s both;
+  -o-animation: fadeOutAnimation 0.3s both;
+  animation: fadeOutAnimation 0.3s both;
+}

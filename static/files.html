@@ -95,9 +95,9 @@
                         <thead>
                         <tr>
                             <th>Filename</th>
-                            <th selective-hidden="small-phones">File Size</th>
-                            <th selective-hidden="tablets">Owner</th>
-                            <th selective-hidden="phones">Date Uploaded</th>
+                            <th class="hide-on-small-phones">File Size</th>
+                            <th class="hide-on-tablets">Owner</th>
+                            <th class="hide-on-phones">Date Uploaded</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -141,15 +141,15 @@
                                 </span>
                                 </div>
                             </td>
-                            <td selective-hidden="small-phones" data-order="${attrib['size']}">
+                            <td class="hide-on-small-phones" data-order="${attrib['size']}">
                                 % if attrib['mime-type'] != 'directory/folder':
                                 ${attrib['size-str']}
                                 % endif
                             </td>
-                            <td selective-hidden="tablets">
+                            <td class="hide-on-tablets">
                                 ${attrib['owners']}
                             </td>
-                            <td selective-hidden="phones" data-order="${attrib['date-uploaded']}">
+                            <td class="hide-on-phones" data-order="${attrib['date-uploaded']}">
                                 ${attrib['date-uploaded-str']}
                             </td>
                         </tr>

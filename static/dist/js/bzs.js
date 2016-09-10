@@ -11,38 +11,6 @@
  */
 
 /*
- * Responsive content design functions:
- *  - bzsAdaptContentToSize()
- */
-var bzsSizeSmallPhoneWidth = 350;
-var bzsSizePhoneWidth = 450;
-var bzsSizeTabletWidth = 768;
-var bzsAdaptContentToSize = function() {
-    var small_phone_width = bzsSizeSmallPhoneWidth;
-    var phone_width = bzsSizePhoneWidth;
-    var tablet_width = bzsSizeTabletWidth;
-    var current_width = $(window).width();
-    // Set hide settings on tablets
-    if (current_width <= tablet_width)
-        $('[selective-hidden="tablets"]').attr('hidden', 'hidden');
-    else
-        $('[selective-hidden="tablets"]').removeAttr('hidden');
-    // Set hide settings on phones
-    if (current_width <= phone_width)
-        $('[selective-hidden="phones"]').attr('hidden', 'hidden');
-    else
-        $('[selective-hidden="phones"]').removeAttr('hidden');
-    // Set hide settings on very small phones
-    if (current_width <= small_phone_width)
-        $('[selective-hidden="small-phones"]').attr('hidden', 'hidden');
-    else
-        $('[selective-hidden="small-phones"]').removeAttr('hidden');
-    return ;
-}
-bzsAdaptContentToSize();
-$(window).resize(bzsAdaptContentToSize);
-
-/*
  * AJAX seamless transitions
  *  - bzsReloadMainframeCore(url, reverseDirection) // The heart of the following function(s)
  *  - bzsReloadMainframe() // triggered by buttons
@@ -94,7 +62,6 @@ var bzsReloadMainframeCore = function(url, reverseDirection, noHistory) {
                         .removeClass('fadeInRight')
                         .addClass('fadeInLeft');
                 $('[data-href]').click(bzsReloadMainframe);
-                bzsAdaptContentToSize();
                 setTimeout(function() {
                     bzsReloadMainframeWorking = false;
                 }, 800);
@@ -123,7 +90,6 @@ var bzsReloadMainframeSeamless = function(target) {
     try {
         mainframe_body.load(target, function() {
             $('[data-href]').click(bzsReloadMainframe);
-            bzsAdaptContentToSize();
             bzsReloadMainframeWorking = false;
         });
     } catch (exception) {
@@ -191,22 +157,6 @@ var bzsHistoryRollfront = function() {
         bzsHistoryList = [bzsReloadMainframeLastAccess]
     }
     return ;
-}
-
-// Touch-devices-only functions.
-if ($(window).width() <= bzsSizeTabletWidth) {
-    $('html').on('swiperight', function() {
-        var current_width = $(window).width();
-        if (current_width < bzsSizeTabletWidth)
-            bzsHistoryRollback();
-        return ;
-    });
-    $('html').on('swipeleft', function() {
-        var current_width = $(window).width();
-        if (current_width < bzsSizeTabletWidth)
-            bzsHistoryRollfront();
-        return ;
-    });
 }
 
 /*
