@@ -18,7 +18,7 @@
  *  - bzsReloadMainframeRefresh() // No effects, reload the same page
  */
 var bzsReloadMainframeWorking = false;
-var bzsReloadMainframeLastAccess = '/files';
+var bzsReloadMainframeLastAccess = '/settings/usergroups';
 
 var bzsReloadMainframeCore = function(url, reverseDirection, noHistory) {
     var mainframe_body = $('#container-mainframe');

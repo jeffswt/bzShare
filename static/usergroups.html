@@ -1,0 +1,72 @@
+<section class="content">
+    <div class="col-xs-12">
+        <div class="row">
+            <div class="box box-primary">
+                <div class="box-header">
+                    <h4 class="box-title pull-left">
+                        Global options
+                    </h4>
+                </div>
+                <div class="box-body">
+                    Create a new group
+                </div>
+            </div>
+        </div>
+        % for itert_group in current_user_groups:
+        <div class="row">
+            <div class="box box-primary">
+                <div class="box-header">
+                    <h4 class="box-title pull-left">
+                        ${itert_group.name} / <span style="color: #aaaaaa; font-size: 14px;">${itert_group.handle}</span>
+                    </h4>
+                </div>
+                <div class="box-body">
+                    <table id="table-usergroups" class="table table-bordered table-striped">
+                        <thead>
+                            <td>User</td>
+                            <td>Operations</td>
+                        </thead>
+                        <tbody>
+                            % for itert_user in itert_group.members:
+                            <tr>
+                                <td>${itert_user.usr_name}</td>
+                                <td>
+                                    <button class="btn btn-danger" ${'disabled="disabled"' if current_user.handle not in itert_group.allowed_edit else ''}>Kick User</button>
+                                </td>
+                            </tr>
+                            % endfor
+                            % for itert_user in itert_group.invited:
+                            <tr>
+                                <td>${itert_user.usr_name} <i><b>Would like to join this group.</b></i></td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-success">Accept</button>
+                                        <button class="btn btn-danger">Decline</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            % endfor
+                        </tbody>
+                        <tfoot>
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="box-footer">
+                    <div class="btn-group pull-left">
+                        <button class="btn btn-primary">Invite User</button>
+                        <button class="btn btn-primary">Rename Group</button>
+                    </div>
+                    <div class="pull-right">
+                        <button class="btn btn-danger">Close This Group</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        % endfor
+        <!-- /.row -->
+    </div>
+</section>
+<!-- /.content -->
+
+<script>
+</script>

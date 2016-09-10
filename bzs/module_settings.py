@@ -118,24 +118,29 @@ class UsergroupHandler(tornado.web.RequestHandler):
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
-    def get(self, targ_user_name):
+    def get(self):
         working_user = users.get_user_by_cookie(
             self.get_cookie('user_active_login', default=''))
 
         # In case it does not exist.
-        try:
-            future = tornado.concurrent.Future()
-            def get_index_html_async(working_user):
-                file_data = utils.get_static_data('./static/profile.html')
-                # file_data = utils.preprocess_webpage(file_data, working_user,
-                #     xsrf_form_html=self.xsrf_form_html()
-                # )
-                future.set_result(file_data)
-            tornado.ioloop.IOLoop.instance().add_callback(
-                get_index_html_async, working_user)
-            file_data = yield future
-        except Exception:
-            raise tornado.web.HTTPError(404)
+        future = tornado.concurrent.Future()
+        def get_data_async(working_user):
+            file_data = utils.get_static_data('./static/usergroups.html')
+            # Demanding data
+            current_user_groups = set()
+            for nam in working_user.usergroups:
+                current_user_groups.add(
+                    users.get_usergroup_by_name(nam).export_dynamic_usergroup()
+                )
+            # Preprocessing page with given options
+            file_data = utils.preprocess_webpage(file_data, working_user,
+                current_user_groups=current_user_groups,
+                xsrf_form_html=self.xsrf_form_html()
+            )
+            future.set_result(file_data)
+        tornado.ioloop.IOLoop.instance().add_callback(
+            get_data_async, working_user)
+        file_data = yield future
 
         # File actually exists, sending data
         self.set_status(200, "OK")

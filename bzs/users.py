@@ -54,21 +54,47 @@ class Usergroup:
         self.handle  = handle
         self.admin   = admin
         self.name    = name
-        self.members = set()
+        self.members = set() # Already-existent members
+        self.invited = set() # Those under invitation from the administrator
+        self.joining = set() # Those who are pending to join
         return
     def add_member(self, mem):
+        if type(mem) != str:
+            mem = mem.handle
         if mem not in self.members:
             self.members.add(mem)
         return
     def remove_member(self, mem):
+        if type(mem) != str:
+            mem = mem.handle
         if mem in self.members and mem != self.admin:
             self.members.remove(mem)
         return
+    def export_dynamic_usergroup(self):
+        """This returns a dynamic usergroup that has references to other objects
+        of the set()s without needing direct queries to the user unit."""
+        class UsergroupDynamic:
+            pass
+        new = UsergroupDynamic()
+        new.handle = self.handle
+        new.admin = self.admin
+        new.name = self.name
+        new.members = set()
+        new.invited = set()
+        new.joining = set()
+        new.allowed_edit = set()
+        for orig_st, new_st in [(self.members, new.members), (self.invited, new.invited), (self.joining, new.joining)]:
+            for i in orig_st:
+                new_st.add(self.master.get_user_by_name(i))
+        if self.handle != 'public':
+            new.allowed_edit = {'kernel', self.admin}
+        return new
     def save_data(self):
         bin_data = pickle.dumps(self)
         if not self.master.usr_db.execute("SELECT handle FROM usergroups WHERE handle = %s;", (self.handle,)):
             self.master.usr_db.execute("INSERT INTO usergroups (handle, data) VALUES (%s, %s);", (self.handle, bin_data))
-        self.master.usr_db.execute("UPDATE usergroups SET data = %s WHERE handle = %s;", (bin_data, self.handle))
+        else:
+            self.master.usr_db.execute("UPDATE usergroups SET data = %s WHERE handle = %s;", (bin_data, self.handle))
         return
     pass
 
@@ -79,26 +105,18 @@ class UserManagerType:
             raise AttributeError('Must provide a database')
         self.users         = dict() # string -> User
         self.users_cookies = dict() # string -> string(handle)
-        self.usergroups    = dict() # string -> string(name)
+        self.usergroups    = dict() # string -> Usergroup
         self.usr_db        = database # Database
-        # Selecting usergroups
-        item = self.usr_db.execute("SELECT index, data FROM core WHERE index = 'usergroups';")
-        try:
-            item = pickle.loads(item[0][1])
-            self.usergroups = item # Uploaded.
-        except:
-            item = set()
-            self.add_usergroup('public', 'Public')
         # Done attribution, now selecting users
         for item in self.usr_db.execute("SELECT handle, data FROM users;"):
             handle, bin_data = item
             n_usr = pickle.loads(bin_data)
             # Injecting into index
-            self.add_user(n_usr)
+            self.add_user(n_usr, raw_insert=True)
         # In case someone is missing... :)
         if 'guest' not in self.users:
             n_usr = User(master=self)
-            self.add_user(n_usr)
+            self.add_user(n_usr, raw_insert=True)
             n_usr.save_data()
         # Adding superusers
         if 'kernel' not in self.users:
@@ -110,23 +128,89 @@ class UserManagerType:
                 usr_description = 'The core manager of bzShare.',
                 master = self
             )
-            self.add_user(n_usr)
-            # This should never be inserted into server database.
+            self.add_user(n_usr, raw_insert=True)
+            # Inject into database.
+            n_usr.save_data()
+        # Now selecting usergroups
+        for item in self.usr_db.execute("SELECT handle, data FROM usergroups;"):
+            handle, bin_data = item
+            n_grp = pickle.loads(bin_data)
+            # Injecting into index
+            self.add_usergroup(n_grp)
+        # Adding public usergroup, in case it's not available
+        if 'public' not in self.usergroups:
+            n_grp = Usergroup(
+                handle = 'public',
+                admin = 'kernel',
+                name = 'Public',
+                master = self
+            )
+            # Must contain all users
+            for usr in self.users:
+                n_grp.add_member(usr)
+            # Insert into memory and database
+            self.add_usergroup(n_grp)
+            n_grp.save_data()
         return
 
-    def add_user(self, n_usr):
+    def add_user(self, n_usr, raw_insert=False):
         self.users[n_usr.handle] = n_usr
         if n_usr.cookie:
             self.users_cookies[n_usr.cookie] = n_usr.handle
+        if not raw_insert:
+            self.get_usergroup_by_name('public').add_member(n_usr)
         return
 
-    def add_usergroup(self, n_grp, grp_name):
-        self.usergroups[n_grp] = grp_name
-        usg_raw = pickle.dumps(self.usergroups)
-        if not self.usr_db.execute("SELECT index FROM core WHERE index = %s;", ('usergroups',)):
-            self.usr_db.execute("INSERT INTO core (index, data) VALUES (%s, %s)", ('usergroups', usg_raw))
-        else:
-            self.usr_db.execute("UPDATE core SET data = %s WHERE index = %s;", ('usg_raw', 'usergroups'))
+    def add_usergroup(self, n_grp):
+        self.usergroups[n_grp.handle] = n_grp
+        return
+
+    def update_user_in_groups(self, usr):
+        if type(usr) == str:
+            usr = self.get_user_by_name(usr)
+        # Checking all usergroups
+        for idx_grp in self.usergroups:
+            grp = self.usergroups[idx_grp]
+            # Member containment
+            edited = False
+            if grp.handle in usr.usergroups:
+                if usr.handle not in grp.members:
+                    grp.members.add(usr.handle)
+                    edited = True
+            elif grp.handle not in usr.usergroups:
+                if usr.handle in grp.members:
+                    grp.members.remove(usr.handle)
+                    edited = True
+            # Administration management
+            if usr.handle == grp.admin:
+                # Then the usergroup ought be destroyed
+                for rm_usr in grp.members:
+                    rm_usr.usergroups.remove(grp.handle)
+                    rm_usr.save_data()
+                grp.members = set()
+                self.remove_usergroup(grp)
+        # Done clearance, attempting to return
+        return
+
+    def remove_user(self, usr):
+        if type(usr) == str:
+            usr = self.get_user_by_name(usr)
+        if usr.handle in {'guest', 'kernel'}:
+            raise Exception('Cannot remove system users')
+        usr.usergroups = set()
+        self.update_user_in_groups()
+        self.usr_db.execute("DELETE FROM users WHERE handle = %s;", (usr.handle,))
+        return
+
+    def remove_usergroup(self, grp):
+        if type(grp) == str:
+            grp = self.get_usergroup_by_name(grp)
+        if grp.handle in {'public'}:
+            raise Exception('Cannot remove system usergroups')
+        for rm_usr in grp.members:
+            rm_usr.usergroups.remove(grp.handle)
+            rm_usr.save_data()
+        self.usr_db.execute("DELETE FROM usergroups WHERE handle = %s;", (grp.handle,))
         return
 
     def ban_user(self, handle, reason=''):
@@ -227,6 +311,7 @@ class UserManagerType:
             master=self
         )
         usr.save_data()
+        self.get_usergroup_by_name('public').add_member(usr)
         self.add_user(usr)
         # After creating account, assign folders for him.
         sqlfs.create_directory('/Users/', usr_handle)
@@ -237,16 +322,22 @@ class UserManagerType:
     def get_user_by_name(self, name):
         if name in self.users:
             return self.users[name]
-        if 'guest' in self.users:
-            return self.users['guest']
-        # Must gurantee a user
-        return self.User(master=self)
+        # If not, then it's a vulnerability that needed to be caught
+        return self.users['guest']
 
     def get_user_by_cookie(self, cookie):
         if cookie in self.users_cookies:
-            return self.get_user_by_name(self.users_cookies[cookie])
+            usr = self.get_user_by_name(self.users_cookies[cookie])
+            if not usr.banned:
+                return usr
         # The one who do not require a cookie to login.
         return self.get_user_by_name('guest')
+
+    def get_usergroup_by_name(self, name):
+        if name in self.usergroups:
+            return self.usergroups[name]
+        # If not, then it's strange...
+        raise Exception('The inquired usergroup "%s" did not exist.' % name)
 
     def get_name_by_id(self, n_id):
         if n_id in self.usergroups:
@@ -260,11 +351,20 @@ UserManager = UserManagerType(
 ################################################################################
 # Exported functions
 
-def add_user(user):
-    return UserManager.add_user(user)
+def add_user(user, raw_insert=False):
+    return UserManager.add_user(user, raw_insert)
 
 def add_usergroup(usergroup, usergroup_name):
     return UserManager.add_usergroup(usergroup, usergroup_name)
+
+def update_user_in_groups(handle):
+    return UserManager.update_user_in_groups(handle)
+
+def remove_user(handle):
+    return UserManager.remove_user(handle)
+
+def remove_usergroup(handle):
+    return UserManager.remove_usergroup(handle)
 
 def ban_user(handle, reason=''):
     return UserManager.ban_user(handle, reason)
@@ -286,6 +386,9 @@ def get_user_by_name(name):
 
 def get_user_by_cookie(cookie):
     return UserManager.get_user_by_cookie(cookie)
+
+def get_usergroup_by_name(name):
+    return UserManager.get_usergroup_by_name(name)
 
 def get_name_by_id(n_id):
     return UserManager.get_name_by_id(n_id)
