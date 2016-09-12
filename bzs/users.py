@@ -187,41 +187,24 @@ class UserManagerType:
         self.usergroups[n_grp.handle] = n_grp
         return
 
-    def update_user_in_groups(self, usr):
-        if type(usr) == str:
-            usr = self.get_user_by_name(usr)
-        # Checking all usergroups
-        for idx_grp in self.usergroups:
-            grp = self.usergroups[idx_grp]
-            # Member containment
-            edited = False
-            if grp.handle in usr.usergroups:
-                if usr.handle not in grp.members:
-                    grp.members.add(usr.handle)
-                    edited = True
-            elif grp.handle not in usr.usergroups:
-                if usr.handle in grp.members:
-                    grp.members.remove(usr.handle)
-                    edited = True
-            # Administration management
-            if usr.handle == grp.admin:
-                # Then the usergroup ought be destroyed
-                for rm_usr in grp.members:
-                    rm_usr.usergroups.remove(grp.handle)
-                    rm_usr.save_data()
-                grp.members = set()
-                self.remove_usergroup(grp)
-        # Done clearance, attempting to return
-        return
-
     def remove_user(self, usr):
         if type(usr) == str:
             usr = self.get_user_by_name(usr)
         if usr.handle in {'guest', 'kernel'}:
             raise Exception('Cannot remove system users')
-        usr.usergroups = set()
-        self.update_user_in_groups()
         self.usr_db.execute("DELETE FROM users WHERE handle = %s;", (usr.handle,))
+        # Unlink usergroups
+        for rm_grp in usr.usergroups:
+            if rm_grp.handle == 'public':
+                continue
+            if usr.handle == rm_grp.admin:
+                self.remove_usergroup(rm_grp)
+            else:
+                rm_grp.remove_member(usr_handle)
+            pass
+        # Expunge user's personal data
+        sqlfs.remove('/Users/%s/' % usr.handle)
+        sqlfs.expunge_user_ownership(usr.handle)
         return
 
     def remove_usergroup(self, grp):
@@ -229,10 +212,17 @@ class UserManagerType:
             grp = self.get_usergroup_by_name(grp)
         if grp.handle in {'public'}:
             raise Exception('Cannot remove system usergroups')
-        for rm_usr in grp.members:
+        # Unlink users
+        for rm_usr_nm in grp.members:
+            rm_usr = self.get_user_by_name(rm_usr_nm)
             rm_usr.usergroups.remove(grp.handle)
             rm_usr.save_data()
+        # Removing usergroup from database
         self.usr_db.execute("DELETE FROM usergroups WHERE handle = %s;", (grp.handle,))
+        del self.usergroups[grp.handle]
+        # Expunge usergroup's data
+        sqlfs.remove('/Groups/%s/' % grp.handle)
+        sqlfs.expunge_user_ownership(grp.handle)
         return
 
     def ban_user(self, handle, reason=''):
@@ -392,6 +382,19 @@ class UserManagerType:
         sqlfs.change_permissions('/Groups/%s/' % grp_handle, 'rwx--x')
         return True
 
+    def join_usergroup(self, grp_handle, joiner):
+        grp = self.get_usergroup_by_name(grp_handle)
+        if joiner.handle in grp.members:
+            raise Exception('You are already an active member of this group.')
+        if joiner.handle in grp.joining:
+            raise Exception('You have already sent a join request to this group.')
+        if joiner.handle == 'guest':
+            raise Exception('Guests are not allowed to join usergroups.')
+        grp.joining.add(joiner.handle)
+        grp.save_data()
+        joiner.save_data()
+        return
+
     def get_user_by_name(self, name):
         if name in self.users:
             return self.users[name]
@@ -456,6 +459,9 @@ def create_user(json_data):
 
 def create_usergroup(handle, name, creator):
     return UserManager.create_usergroup(handle, name, creator)
+
+def join_usergroup(handle, joiner):
+    return UserManager.join_usergroup(handle, joiner)
 
 def get_user_by_name(name):
     return UserManager.get_user_by_name(name)
