@@ -31,6 +31,7 @@ universal_options_list = {
     'time-format': '%a %d/%m/%Y, %H:%M:%S',
     'time-zone': 'Asia/Shanghai',
     'users-invite-code': os.environ.get('BZS_USERS_INVITE_CODE', '571428'),
+    'users-max-groups-allowed': 3,
     'version': 'r0.24-dev'
 }
 

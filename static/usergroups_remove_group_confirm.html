@@ -1,0 +1,56 @@
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+    <h4 class="modal-title">Group Dismissal Confirmation</h4>
+</div>
+<div class="modal-body">
+    <p>
+        You had just attempted to dismiss a group that you created.
+    </p>
+    <p>
+        You must be aware of the fact that this process is inreversible, which would
+        remove all members from the group and the group would cease to exist. You
+        may create this group at a later time, but all data relating to this group
+        would be permanently deleted.
+    </p>
+    <p>
+        If you did not initiate this operation, please close this dialog immediately.
+    </p>
+    <p>
+        If you really do wish to expunge the group, enter the handle of the group
+        <strong><i>${grp_handle}</i></strong> below and confirm dismissal.
+    </p>
+    <p>
+        <div class="form-group has-feedback">
+            <input id="bzsDropGroupConfirmText" type="text" class="form-control" placeholder="Enter usergroup handle">
+            <script>
+            $('#bzsDropGroupConfirmText').bind('input propertychange', function() {
+                if ($(this).val() != '${grp_handle}')
+                    $('#bzsDropGroupButton').attr('disabled', 'disabled');
+                else
+                    $('#bzsDropGroupButton').removeAttr('disabled');
+                return ;
+            });
+            </script>
+        </div>
+    </p>
+    <p><div class="row"><div class="col-xs-12">
+        <button id="bzsDropGroupButton" class="btn btn-danger btn-block" onclick="javascript:bzsDropGroupFunc();" disabled="disabled">
+            Remove group
+        </button>
+    </div></div></p>
+</div>
+
+<script>
+var bzsDropGroupFunc = function() {
+    bzsDialogLoadingLoad();
+    $.ajax({
+        method: "POST",
+        url: "/settings/usergroups_edit/dropgroup+${grp_handle}",
+        complete: function(data) {
+            bzsDialogTemplateLoadHtml(data.responseText);
+            bzsReloadMainframeRefresh();
+            bzsReloadMainIndex();
+            return ;
+        }
+    })
+}

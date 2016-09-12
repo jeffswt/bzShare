@@ -1,19 +1,104 @@
+<section class="content-header">
+    <h1>
+        Usergroups
+        <small>Unity is might</small>
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="#" data-href="/home">Home</a></li>
+        <li class="active">Settings</li>
+        <li class="active">Usergroups</li>
+    </ol>
+</section>
 <section class="content">
-    <div class="col-xs-12">
-        <div class="row">
-            <div class="box box-primary">
+    <div class="row">
+        <div class="col-xs-12">
+            % if current_user.handle != 'guest':
+            <div class="box box-success">
                 <div class="box-header">
                     <h4 class="box-title pull-left">
-                        Global options
+                        General Information
                     </h4>
                 </div>
                 <div class="box-body">
-                    Create a new group
+                    <p>
+                        In this section you would be able to perform a few actions related to usergroups.
+                        One person may create at most 3 usergroups at a time and universally, not including
+                        the bzShare kernel, which may own infinite groups simultaneously.
+                    </p>
+                    <p>
+                        You may choose to join groups, but you must first provide the hash / handle of
+                        the usergroup. No information would be provided about these usergroups unless you
+                        had entered the corresponding usergroup handle.
+                    </p>
+                    <p>
+                        By creating a usergroup, you are granted the permissions to own, edit all files
+                        in its group repository / folder, recursively. And you are granted the rights to
+                        the forums of the group, given the assumption that it should exist. In other cases
+                        the administrator and the kernel executively have the permissions to kick users
+                        from the group. No invitations would be possible.
+                    </p>
                 </div>
             </div>
-        </div>
-        % for itert_group in current_user_groups:
-        <div class="row">
+            <div class="box box-success">
+                <div class="box-header">
+                    <h4 class="box-title pull-left">
+                        Create Usergroup
+                    </h4>
+                </div>
+                <div class="box-body">
+                    <form id="usergroup-create-form" class="form-horizontal">
+                        ${xsrf_form_html}
+                        <div class="form-group">
+                            <label for="inputHandle" class="col-sm-2 control-label">Handle</label>
+                            <div class="col-sm-10">
+                                <input type="text" class="form-control" id="inputHandle" name="handle">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="inputName" class="col-sm-2 control-label">Group Name</label>
+                            <div class="col-sm-10">
+                                <input type="text" class="form-control" id="inputName" name="name">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success pull-right">Create</button>
+                    </form>
+                </div>
+            </div>
+            <div class="box box-success">
+                <div class="box-header">
+                    <h4 class="box-title pull-left">
+                        Join Usergroup
+                    </h4>
+                </div>
+                <div class="box-body">
+                    <form id="usergroup-join-form" class="form-horizontal">
+                        ${xsrf_form_html}
+                        <div class="form-group">
+                            <label for="inputHandle" class="col-sm-2 control-label">Handle</label>
+                            <div class="col-sm-10">
+                                <input type="text" class="form-control" id="inputHandle" name="handle">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success pull-right">Send Join Request</button>
+                    </form>
+                </div>
+            </div>
+            % endif
+            <div class="box box-primary">
+                <div class="box-header">
+                    <h4 class="box-title pull-left">
+                        Your usergroups
+                    </h4>
+                </div>
+                <div class="box-body">
+                    <p>
+                        Below are the usergroups that you are a member of. If you are an administrator
+                        then you are granted the rights to accept join requests and kick users. Otherwise
+                        you may only view the users, not edit them.
+                    </p>
+                 </div>
+            </div>
+            % for itert_group in sorted(current_user_groups):
             <div class="box box-primary">
                 <div class="box-header">
                     <h4 class="box-title pull-left">
@@ -22,26 +107,30 @@
                 </div>
                 <div class="box-body">
                     <table id="table-usergroups" class="table table-bordered table-striped">
-                        <thead>
-                            <td>User</td>
-                            <td>Operations</td>
-                        </thead>
+                        <thead><tr>
+                            <th>User</td>
+                            <th>Operations</td>
+                        </tr></thead>
                         <tbody>
                             % for itert_user in itert_group.members:
                             <tr>
                                 <td>${itert_user.usr_name}</td>
                                 <td>
-                                    <button class="btn btn-danger" ${'disabled="disabled"' if current_user.handle not in itert_group.allowed_edit else ''}>Kick User</button>
+                                    % if itert_user.handle != itert_group.admin:
+                                    <button class="btn btn-danger" ${'disabled="disabled"' if current_user.handle not in itert_group.allowed_edit else ''} target="#" onclick="javascript:bzsSettingsPerformAction('/settings/usergroups_edit/kick+${itert_group.handle}+${itert_user.handle}');">Kick User</button>
+                                    % else:
+                                    <button class="btn btn-warning">Group Administrator</button>
+                                    % endif
                                 </td>
                             </tr>
                             % endfor
-                            % for itert_user in itert_group.invited:
+                            % for itert_user in itert_group.joining:
                             <tr>
                                 <td>${itert_user.usr_name} <i><b>Would like to join this group.</b></i></td>
                                 <td>
                                     <div class="btn-group">
-                                        <button class="btn btn-success">Accept</button>
-                                        <button class="btn btn-danger">Decline</button>
+                                        <button class="btn btn-success" target="#" onclick="javascript:bzsSettingsPerformAction('/settings/usergroups_edit/accept+${itert_group.handle}+${itert_user.handle}');">Accept</button>
+                                        <button class="btn btn-danger" target="#" onclick="javascript:bzsSettingsPerformAction('/settings/usergroups_edit/decline+${itert_group.handle}+${itert_user.handle}');">Decline</button>
                                     </div>
                                 </td>
                             </tr>
@@ -52,21 +141,103 @@
                     </table>
                 </div>
                 <div class="box-footer">
-                    <div class="btn-group pull-left">
-                        <button class="btn btn-primary">Invite User</button>
+                    % if current_user.handle not in itert_group.allowed_edit:
+                    <div class="pull-left">
+                        <button class="btn btn-primary" disabled="disabled">Rename Group</button>
+                    </div>
+                    <div class="pull-right">
+                        <button class="btn btn-danger" disabled="disabled">Close This Group</button>
+                    </div>
+                    % else:
+                    <div class="pull-left">
                         <button class="btn btn-primary">Rename Group</button>
                     </div>
                     <div class="pull-right">
-                        <button class="btn btn-danger">Close This Group</button>
+                        <button class="btn btn-danger" onclick="javascript:bzsDialogTemplateLoad('/settings/usergroups_edit/dropgroup-prompt+${itert_group.handle}', 'modal-warning')">Close This Group</button>
                     </div>
+                    % endif
                 </div>
             </div>
+            % endfor
         </div>
-        % endfor
         <!-- /.row -->
     </div>
 </section>
 <!-- /.content -->
 
 <script>
+$('#table-usergroups').DataTable({
+    "paging": false,
+    "lengthChange": false,
+    "searching": true,
+    "ordering": true,
+    "info": true,
+    "autoWidth": true
+});
+$('#table-usergroups_filter').attr('style', 'float:right');
+
+var bzsSettingsCreateUsergroup = function(event) {
+    event.preventDefault();
+    // Sorting data
+    var form_source = $(this).serializeArray();
+    var form_data = {};
+    for (var i = 0; i < form_source.length; i++)
+        form_data[form_source[i]['name']] = form_source[i]['value'];
+    bzsDialogLoadingLoad();
+    // Done sorting data, proceeding to upload
+    $.ajax({
+        method: "POST",
+        url: "/settings/usergroups_edit/create",
+        data: JSON.stringify(form_data),
+        dataType: "json",
+        complete: function(data) {
+            bzsDialogTemplateLoadHtml(data.responseText);
+            bzsReloadMainframeRefresh();
+            bzsReloadMainIndex();
+            return ;
+        }
+    });
+    return ;
+};
+$('#usergroup-create-form').submit(bzsSettingsCreateUsergroup);
+
+var bzsSettingsJoinUsergroup = function(event) {
+    event.preventDefault();
+    // Sorting data
+    var form_source = $(this).serializeArray();
+    var form_data = {};
+    for (var i = 0; i < form_source.length; i++)
+        form_data[form_source[i]['name']] = form_source[i]['value'];
+    bzsDialogLoadingLoad();
+    // Done sorting data, proceeding to upload
+    $.ajax({
+        method: "POST",
+        url: "/settings/usergroups_edit/join",
+        data: JSON.stringify(form_data),
+        dataType: "json",
+        complete: function(data) {
+            bzsDialogTemplateLoadHtml(data.responseText);
+            bzsReloadMainframeRefresh();
+            bzsReloadMainIndex();
+            return ;
+        }
+    });
+    return ;
+}
+$('#usergroup-join-form').submit(bzsSettingsJoinUsergroup);
+
+var bzsSettingsPerformAction = function(target) {
+    bzsDialogLoadingLoad();
+    $.ajax({
+        method: "POST",
+        url: target,
+        complete: function(data) {
+            bzsDialogTemplateLoadHtml(data.responseText);
+            bzsReloadMainframeRefresh();
+            bzsReloadMainIndex();
+            return ;
+        }
+    });
+    return ;
+};
 </script>
