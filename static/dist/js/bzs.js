@@ -189,11 +189,27 @@ var bzsDialogInputStringLoad = function(title, placeholder, action, uuid, callba
     return true;
 }
 
-var bzsDialogTemplateLoad = function(target) {
+var bzsDialogTemplateLoad = function(target, type) {
+    var wrapper = $('#dialog-template-container-wrapper');
+    console.log(type)
+    wrapper.removeClass('modal-default')
+        .removeClass('modal-info')
+        .removeClass('modal-success')
+        .removeClass('modal-danger')
+        .removeClass('modal-warning');
+    if (!type) type = 'modal-default';
+    wrapper.addClass(type);
     $('#dialog-template-container-content').load(target, function() {
-        $('#dialog-template-container').modal('show');
+        if (!$('#dialog-template-container').hasClass('in'))
+            $('#dialog-template-container').modal('show');
         return ;
     });
+    return ;
+}
+var bzsDialogTemplateLoadHtml = function(data) {
+    $('#dialog-template-container-content').html(data);
+    if (!$('#dialog-template-container').hasClass('in'))
+        $('#dialog-template-container').modal('show');
     return ;
 }
 var bzsDialogTemplateUnload = function() {
@@ -202,8 +218,11 @@ var bzsDialogTemplateUnload = function() {
 }
 
 var bzsDialogLoadingLoad = function(title) {
+    if (!title)
+        title = 'Processing operation...';
     $('#dialog-template-container-content').html('<div class="modal-header"><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button><h4 class="modal-title">' + title + '</h4></div><div class="modal-body"><p>Please do not close this dialog while the server processes the operation.</p><div class="progress active"><div class="progress-bar progress-bar-primary progress-bar-striped" style="width:100%"></div></div></div>');
-    $('#dialog-template-container').modal('show');
+    if (!$('#dialog-template-container').hasClass('in'))
+        $('#dialog-template-container').modal('show');
     return ;
 };
 var bzsDialogLoadingUnload = function() {

@@ -1,5 +1,15 @@
+<section class="content-header">
+    <h1>
+        Profile
+        <small>The virtual look of us</small>
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="#" data-href="/home">Home</a></li>
+        <li class="active">Settings</li>
+        <li class="active">Profile</li>
+    </ol>
+</section>
 <section class="content">
-
     <div class="row">
         <div class="col-md-3">
 
@@ -45,6 +55,7 @@
                 <div class="tab-content">
                     <div class="active tab-pane" disabled="disabled" id="account-settings">
                         <form id="account-settings-form" class="form-horizontal">
+                            ${xsrf_form_html}
                             <div class="form-group">
                                 <label for="inputHandle" class="col-sm-2 control-label">Handle</label>
                                 <div class="col-sm-10">
@@ -106,6 +117,7 @@ var bzsSettingsUpdateProfile = function(event) {
     for (var i = 0; i < form_source.length; i++)
         form_data[form_source[i]['name']] = form_source[i]['value'];
     // Done sorting data, proceeding to upload
+    bzsDialogLoadingLoad();
     $.ajax({
         method: "POST",
         url: "/settings/profile_edit/${this_user.handle}",
@@ -113,6 +125,7 @@ var bzsSettingsUpdateProfile = function(event) {
         dataType: "json",
         complete: function(data) {
             event.preventDefault();
+            bzsDialogLoadingUnload();
             $('#dialog-template-container-content').html(data.responseText);
             $('#dialog-template-container').modal('show');
             bzsReloadMainframeRefresh();
