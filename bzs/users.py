@@ -379,7 +379,6 @@ class UserManagerType:
         n_grp.save_data()
         creator.save_data()
         # After creating group, assign folders for it.
-        print('Creating usergroup %s' % grp_handle)
         sqlfs.create_directory('/Groups/', grp_handle)
         sqlfs.change_ownership('/Groups/%s/' % grp_handle, {grp_handle})
         sqlfs.change_permissions('/Groups/%s/' % grp_handle, 'rwx--x')

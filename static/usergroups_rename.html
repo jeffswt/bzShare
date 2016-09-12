@@ -1,0 +1,39 @@
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+    <h4 class="modal-title">Rename Usergroup</h4>
+</div>
+<div class="modal-body">
+    <form id="dialog-template-form" method="POST" action="/">
+        ${xsrf_form_html}
+        <div class="form-group has-feedback">
+            <input name="name" class="form-control" placeholder="Group name" value="${grp_name}">
+            <span class="glyphicon glyphicon-tags form-control-feedback"></span>
+        </div>
+        <div class="row"><div class="col-xs-12">
+            <button type="submit" class="btn btn-primary btn-block">
+                Rename
+            </button>
+        </div></div>
+    </form>
+</div>
+
+<script>
+$('#dialog-template-form').submit(function(event) {
+    event.preventDefault();
+    var form_data = {};
+    var form_source = $(this).serializeArray();
+    for (var i = 0; i < form_source.length; i++)
+        form_data[form_source[i]['name']] = form_source[i]['value']
+    $.ajax({
+        method: 'POST',
+        url: '/settings/usergroups_edit/rename+${grp_handle}',
+        data: JSON.stringify(form_data),
+        dataType: "json",
+        complete: function(data) {
+            bzsDialogTemplateLoadHtml(data.responseText);
+            bzsReloadMainIndex();
+            return ;
+        }
+    });
+});
+</script>

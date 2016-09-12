@@ -150,7 +150,7 @@
                     </div>
                     % else:
                     <div class="pull-left">
-                        <button class="btn btn-primary">Rename Group</button>
+                        <button class="btn btn-primary" onclick="javascript:bzsDialogTemplateLoad('/settings/usergroups_edit/rename-prompt+${itert_group.handle}')">Rename Group</button>
                     </div>
                     <div class="pull-right">
                         <button class="btn btn-danger" onclick="javascript:bzsDialogTemplateLoad('/settings/usergroups_edit/dropgroup-prompt+${itert_group.handle}', 'modal-warning')">Close This Group</button>

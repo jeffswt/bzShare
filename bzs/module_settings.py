@@ -210,6 +210,17 @@ class UsergroupEditHandler(tornado.web.RequestHandler):
                         raise Exception('You are not authorized to perform this action.')
                     users.remove_usergroup(grp)
                     pass
+                elif req_func[0] == 'rename':
+                    req_data = json.loads(self.request.body.decode('utf-8', 'ignore'))
+                    grp_handle = req_func[1]
+                    grp_name = req_data['name']
+                    grp = users.get_usergroup_by_name(grp_handle)
+                    if working_user.handle != 'kernel' and working_user.handle != grp.admin:
+                        raise Exception('You are not authorized to perform this action.')
+                    users.UserManager.create_usergroup_check_name(grp_name)
+                    grp.name = grp_name
+                    grp.save_data()
+                    pass
                 if not file_data:
                     file_data = utils.get_static_data('./static/usergroups_edit_success.html')
                     # Process webpage
@@ -266,6 +277,19 @@ class UsergroupEditHandler(tornado.web.RequestHandler):
                     # Process webpage
                     file_data = utils.preprocess_webpage(file_data, working_user,
                         grp_handle=grp_handle,
+                        xsrf_form_html=self.xsrf_form_html()
+                    )
+                    pass
+                elif req_func[0] == 'rename-prompt':
+                    grp_handle = req_func[1]
+                    grp = users.get_usergroup_by_name(grp_handle)
+                    if working_user.handle != 'kernel' and working_user.handle != grp.admin:
+                        raise Exception('You are not authorized to perform this action.')
+                    file_data = utils.get_static_data('./static/usergroups_rename.html')
+                    # Process webpage
+                    file_data = utils.preprocess_webpage(file_data, working_user,
+                        grp_handle=grp.handle,
+                        grp_name=grp.name,
                         xsrf_form_html=self.xsrf_form_html()
                     )
                     pass
