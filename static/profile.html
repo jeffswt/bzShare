@@ -124,10 +124,7 @@ var bzsSettingsUpdateProfile = function(event) {
         data: JSON.stringify(form_data),
         dataType: "json",
         complete: function(data) {
-            event.preventDefault();
-            bzsDialogLoadingUnload();
-            $('#dialog-template-container-content').html(data.responseText);
-            $('#dialog-template-container').modal('show');
+            bzsDialogTemplateLoadHtml(data.responseText);
             bzsReloadMainframeRefresh();
             bzsReloadMainIndex();
             return ;

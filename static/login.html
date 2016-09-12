@@ -40,8 +40,7 @@ $('#dialog-template-form').submit(function(event) {
         data: JSON.stringify(form_data),
         dataType: "json",
         complete: function(data) {
-            event.preventDefault();
-            $('#dialog-template-container-content').html(data.responseText)
+            bzsDialogTemplateLoadHtml(data.responseText);
             bzsReloadMainIndex();
             return ;
         }
