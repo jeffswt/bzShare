@@ -67,23 +67,45 @@ class Usergroup:
     def remove_member(self, mem):
         if type(mem) != str:
             mem = mem.handle
-        if mem in self.members and mem != self.admin:
-            self.members.remove(mem)
+        mem = self.master.get_user_by_name(mem)
+        if mem.handle == self.admin:
+            raise Exception('Cannot kick the administrator of the group.')
+        self.members.remove(mem.handle)
+        self.save_data()
+        mem.save_data()
+        return
+    def accept_member(self, mem):
+        if type(mem) != str:
+            mem = mem.handle
+        mem = self.master.get_user_by_name(mem)
+        mem.usergroups.add(self.handle)
+        self.members.add(mem.handle)
+        self.joining.remove(mem.handle)
+        self.save_data()
+        mem.save_data()
+        return
+    def decline_member(self, mem):
+        if type(mem) != str:
+            mem = mem.handle
+        if mem in self.joining:
+            self.joining.remove(mem)
+        self.save_data()
         return
     def export_dynamic_usergroup(self):
         """This returns a dynamic usergroup that has references to other objects
         of the set()s without needing direct queries to the user unit."""
         class UsergroupDynamic:
+            def __lt__(self, value):
+                return self.handle < value.handle
             pass
         new = UsergroupDynamic()
         new.handle = self.handle
         new.admin = self.admin
         new.name = self.name
         new.members = set()
-        new.invited = set()
         new.joining = set()
         new.allowed_edit = set()
-        for orig_st, new_st in [(self.members, new.members), (self.invited, new.invited), (self.joining, new.joining)]:
+        for orig_st, new_st in [(self.members, new.members), (self.joining, new.joining)]:
             for i in orig_st:
                 new_st.add(self.master.get_user_by_name(i))
         if self.handle != 'public':
@@ -319,6 +341,57 @@ class UserManagerType:
         sqlfs.change_permissions('/Users/%s/' % usr_handle, 'rwx--x')
         return True
 
+    def create_usergroup_check_handle(self, grp_handle):
+        if not utils.is_safe_string(grp_handle, 'letters_alpha', 'numbers'):
+            raise Exception('Usergroup handle must be composed of non-capital letters and digits only.')
+        if len(grp_handle) > 32 or len(grp_handle) < 3:
+            raise Exception('Usergroup handle must has the length within the range of 3 letters to 32 letters.')
+        if grp_handle in self.usergroups or grp_handle in self.users:
+            raise Exception('This usergroup handle had already been used. Consider using another one.')
+        return grp_handle
+
+    def create_usergroup_check_name(self, grp_name):
+        if utils.is_unsafe_string(grp_name, 'html_escape'):
+            raise Exception('The name should not contain HTML escape characters.')
+        if len(grp_name) < 3:
+            raise Exception('The name should not be shorter than 3 characters.')
+        if len(grp_name) > 32:
+            raise Exception('The name should not exceed 32 characters.')
+        return grp_name
+
+    def create_usergroup(self, grp_handle, grp_name, creator):
+        self.create_usergroup_check_handle(grp_handle)
+        self.create_usergroup_check_name(grp_name)
+        # Checked name validity, now checking authenticity
+        is_admin_cnt = 0
+        for gp_nm in creator.usergroups:
+            gp_hn = self.usergroups[gp_nm]
+            if creator.handle == gp_hn.admin:
+                is_admin_cnt += 1
+        if is_admin_cnt >= const.get_const('users-max-groups-allowed') and creator.handle != 'kernel':
+            raise Exception('You have created too many usergroups (>= %d).' % const.get_const('users-max-groups-allowed'))
+        # Checking who created this
+        if creator.handle == 'guest':
+            raise Exception('Guest accounts are not allowed to create usergroups.')
+        # Creating new usergroup
+        n_grp = Usergroup(
+            handle=grp_handle,
+            name=grp_name,
+            admin=creator.handle,
+            master=self
+        )
+        n_grp.add_member(creator.handle)
+        creator.usergroups.add(n_grp.handle)
+        self.add_usergroup(n_grp)
+        n_grp.save_data()
+        creator.save_data()
+        # After creating group, assign folders for it.
+        print('Creating usergroup %s' % grp_handle)
+        sqlfs.create_directory('/Groups/', grp_handle)
+        sqlfs.change_ownership('/Groups/%s/' % grp_handle, {grp_handle})
+        sqlfs.change_permissions('/Groups/%s/' % grp_handle, 'rwx--x')
+        return True
+
     def get_user_by_name(self, name):
         if name in self.users:
             return self.users[name]
@@ -380,6 +453,9 @@ def logout_user(handle):
 
 def create_user(json_data):
     return UserManager.create_user(json_data)
+
+def create_usergroup(handle, name, creator):
+    return UserManager.create_usergroup(handle, name, creator)
 
 def get_user_by_name(name):
     return UserManager.get_user_by_name(name)
