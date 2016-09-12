@@ -30,6 +30,8 @@ class FilesystemPermissions:
             return True
         if 'public' in owners:
             return True
+        if user.handle == 'kernel':
+            return True
         return user.handle in owners
 
     def __accessible(self, node, user, mode, check_parent=False):
@@ -94,7 +96,7 @@ class FilesystemPermissions:
         if not node:
             return False
         return self.__accessible(node, user, 'write', check_parent=True)
-    
+
     def writable_all(self, path, user, parent=None):
         """Check permissions of a folder whether it should be writable - all of
         its contents and subfolders should be writable."""

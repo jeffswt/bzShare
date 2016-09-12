@@ -142,6 +142,13 @@ def change_permissions(path, permissions, recursive=False, user=None):
     ret_result = Filesystem.change_permissions(path, permissions, recursive)
     return ret_result
 
+def expunge_user_ownership(handle):
+    """Must only be called from kernel / system, used when removing a usergroup
+    or a user. Its ownership is expunged from the system, and replaced by the
+    file node's parent."""
+    ret_result = Filesystem.expunge_user_ownership(handle)
+    return ret_result
+
 def list_directory(path, user=None):
     """Creates a list of files in the directory 'path'. Attributes of the
     returned result contains:

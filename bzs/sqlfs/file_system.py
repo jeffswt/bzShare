@@ -833,6 +833,27 @@ class Filesystem:
             ret_result = self.__chmod_recursive(path, permissions)
         return ret_result
 
+    def expunge_user_ownership(self, handle):
+        """Must only be called from kernel / system, used when removing a usergroup
+        or a user. Its ownership is expunged from the system, and replaced by the
+        file node's parent."""
+        root = self.fs_root
+        def __exp_uown(node, handle):
+            for sub in node.sub_items:
+                if handle in sub.owners:
+                    # Expunge its ownership with respect to the parent ownership
+                    sub.owners.remove(handle)
+                    if not sub.owners:
+                        for i in node.owners:
+                            sub.owners.add(i)
+                    # Update in filesystem database
+                    self.__update_in_db(sub)
+                # Iterating...
+                __exp_uown(sub, handle)
+            return
+        __exp_uown(root, handle)
+        return
+
     def list_directory(self, path):
         """Creates a list of files in the directory 'path'. Attributes of the
         returned result contains:
