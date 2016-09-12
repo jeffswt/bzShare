@@ -46,6 +46,7 @@ def main():
             (r'^/settings/profile/(.*)/?$', module_settings.ProfileHandler),
             (r'^/settings/profile_edit/(.*)/?$', module_settings.ProfileEditHandler),
             (r'^/settings/usergroups/?$', module_settings.UsergroupHandler),
+            (r'^/settings/usergroups_edit/(.*)/?$', module_settings.UsergroupEditHandler),
             (r'.*', module_error404.Error404Handler)
         ],
         xsrf_cookies=False # True to prevent CSRF third party attacks
