@@ -264,7 +264,7 @@ class UserManagerType:
             raise Exception('User handle must be composed of non-capital letters and digits only.')
         if len(usr_handle) > 32 or len(usr_handle) < 3:
             raise Exception('User handle must has the length within the range of 3 letters to 32 letters.')
-        if usr_handle in self.users:
+        if usr_handle in self.users or usr_handle in self.usergroups:
             raise Exception('This user handle had already been used. Consider using another one.')
         return usr_handle
 
@@ -280,6 +280,8 @@ class UserManagerType:
     def create_user_check_username(self, usr_name):
         if utils.is_unsafe_string(usr_name, 'html_escape'):
             raise Exception('Your name should not contain HTML escape characters.')
+        if len(usr_name) < 3:
+            raise Exception('Your name should not be shorter than 3 characters.')
         if len(usr_name) > 32:
             raise Exception('Your name should not exceed 32 characters.')
         return usr_name
@@ -322,9 +324,10 @@ class UserManagerType:
             usr_description=usr_desc,
             master=self
         )
-        usr.save_data()
-        self.get_usergroup_by_name('public').add_member(usr)
+        self.usergroups['public'].members.add(usr.handle)
+        self.usergroups['public'].save_data()
         self.add_user(usr)
+        usr.save_data()
         # After creating account, assign folders for him.
         sqlfs.create_directory('/Users/', usr_handle)
         sqlfs.change_ownership('/Users/%s/' % usr_handle, {usr_handle})
@@ -417,7 +420,7 @@ class UserManagerType:
 
     def get_name_by_id(self, n_id):
         if n_id in self.usergroups:
-            return self.usergroups[n_id]
+            return self.usergroups[n_id].name
         return get_user_by_name(n_id).usr_name
 
 UserManager = UserManagerType(
@@ -432,9 +435,6 @@ def add_user(user, raw_insert=False):
 
 def add_usergroup(usergroup, usergroup_name):
     return UserManager.add_usergroup(usergroup, usergroup_name)
-
-def update_user_in_groups(handle):
-    return UserManager.update_user_in_groups(handle)
 
 def remove_user(handle):
     return UserManager.remove_user(handle)
