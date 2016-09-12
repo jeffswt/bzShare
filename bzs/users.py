@@ -325,6 +325,7 @@ class UserManagerType:
             master=self
         )
         self.usergroups['public'].members.add(usr.handle)
+        print(self.usergroups['public'].members)
         self.usergroups['public'].save_data()
         self.add_user(usr)
         usr.save_data()
@@ -397,6 +398,21 @@ class UserManagerType:
         joiner.save_data()
         return
 
+    def is_owner(self, user, owners):
+        """Check if user is one of the owners."""
+        if type(user) == str:
+            user = self.get_user_by_name(user)
+        for grp in user.usergroups:
+            if grp in owners:
+                return True
+        if 'guest' in owners:
+            return True
+        if 'public' in owners:
+            return True
+        if user.handle == 'kernel':
+            return True
+        return user.handle in owners
+
     def get_user_by_name(self, name):
         if name in self.users:
             return self.users[name]
@@ -461,6 +477,9 @@ def create_usergroup(handle, name, creator):
 
 def join_usergroup(handle, joiner):
     return UserManager.join_usergroup(handle, joiner)
+
+def is_owner(user, owners):
+    return UserManager.is_owner(user, owners)
 
 def get_user_by_name(name):
     return UserManager.get_user_by_name(name)

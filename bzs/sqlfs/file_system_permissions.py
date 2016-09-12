@@ -21,29 +21,30 @@ class FilesystemPermissions:
         self.fs = filesystem
         return
 
-    def __is_owner(self, user, owners):
-        """Check if user is one of the owners."""
-        for grp in user.usergroups:
-            if grp in owners:
-                return True
-        if 'guest' in owners:
-            return True
-        if 'public' in owners:
-            return True
-        if user.handle == 'kernel':
-            return True
-        return user.handle in owners
-
     def __accessible(self, node, user, mode, check_parent=False):
         """Wrapping function for determining a single attribute."""
         # Kernel has ultimate access to files
         if user.handle in {'kernel'}:
             return True
         # Otherwise normal users
-        grp = 'owner' if self.__is_owner(user, node.owners) else 'other'
+        grp = 'owner' if users.is_owner(user, node.owners) else 'other'
+        # Checking if its parents' owners has a usergroup whose admin is 'user'
+        it_node = node
+        while it_node != self.fs.fs_root and grp == 'other':
+            it_node = it_node.parent
+            for ownr in it_node.owners:
+                try:
+                    usr_grp = users.get_usergroup_by_name(ownr)
+                    if user.handle == usr_grp.admin:
+                        grp = 'owner'
+                        break
+                except:
+                    pass
+            continue
+        # Then...
         res_1 = node.permissions['%s_%s' % (grp, mode)]
         if node.parent and check_parent:
-            grp2 = 'owner' if self.__is_owner(user, node.parent.owners) else 'other'
+            grp2 = 'owner' if users.is_owner(user, node.parent.owners) else 'other'
             res_2 = node.parent.permissions['%s_%s' % (grp2, mode)] if node.parent.permissions['%s_%s' % (grp2, 'pass')] else True
         else:
             res_2 = True
