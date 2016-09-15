@@ -325,7 +325,6 @@ class UserManagerType:
             master=self
         )
         self.usergroups['public'].members.add(usr.handle)
-        print(self.usergroups['public'].members)
         self.usergroups['public'].save_data()
         self.add_user(usr)
         usr.save_data()

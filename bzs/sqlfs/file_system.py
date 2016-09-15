@@ -36,30 +36,29 @@ class Filesystem:
 
         file_name     = ''
         is_dir        = False
-        owners        = {'kernel'}
-        permissions   = dict(
-            owner_read  = True,
-            owner_write = True,
-            owner_pass  = False,
-            other_read  = False,
-            other_write = False,
-            other_pass  = False
-        )
+        owner         = 'kernel'
+        permissions   = {
+            '': dict(
+                read  = False,
+                write = False,
+                inherit = False
+            )
+        }
         uuid          = uuid_package.UUID('00000000-0000-0000-0000-000000000000')
         upload_time   = 0.0
         f_uuid        = uuid_package.UUID('00000000-0000-0000-0000-000000000000')
         sub_items     = set()
         sub_names_idx = dict()
 
-        def __init__(self, is_dir, file_name, owners, permissions='rwx--x', uuid=None, upload_time=None, sub_folders=set(), sub_files=set(), f_uuid=None, master=None):
+        def __init__(self, is_dir, file_name, owner, permissions={'':'--x'}, uuid=None, upload_time=None, sub_folders=set(), sub_files=set(), f_uuid=None, master=None):
             """Load tree of all nodes in SQLFS filesystem."""
             # The filesystem / master of the node
             self.master = master
             # Assigning data
             self.is_dir = is_dir
             self.file_name = file_name
-            self.owners = owners
-            self.chmod(permissions)
+            self.owner = owner
+            self.chmod_all(permissions)
             # Generate Universally Unique Identifier
             self.uuid = master.utils_pkg.get_new_uuid(uuid, master.fs_uuid_idx)
             master.fs_uuid_idx[self.uuid] = self
@@ -82,7 +81,7 @@ class Filesystem:
         def duplicate(self):
             """Create duplicate (mutation-invulnerable) of this node with
             a different UUID."""
-            n_fl = self.master.fsNode(self.is_dir, self.file_name, self.owners,
+            n_fl = self.master.fsNode(self.is_dir, self.file_name, self.owner,
                 master=self.master)
             n_fl.permissions = copy.copy(self.permissions)
             # n_fl.uuid = None # Disabled due to new UUID necessity
@@ -95,40 +94,60 @@ class Filesystem:
             n_fl.sub_names_idx = copy.copy(self.sub_names_idx)
             return n_fl
 
-        def chown(self, owners):
-            self.owners = owners
+        def chown(self, owner):
+            """ Change owner of the file. """
+            self.owner = owner
             return True
 
-        def chmod(self, perm):
-            if len(perm) != 6:
+        def chmod(self, usr, perm):
+            """ Changes the permission of a single user. """
+            if len(perm) != 3:
                 return False # Does not comply with the basics
             self.permissions = dict()
-            standard = 'rwxrwx'
-            indices = ['owner_read', 'owner_write', 'owner_pass',
-                'other_read', 'other_write', 'other_pass']
-            for i in range(0, 6):
+            standard = 'rwx'
+            indices = ['read', 'write', 'inherit']
+            for i in range(0, 3):
                 self.permissions[indices[i]] = (perm[i] == standard[i])
             return True
 
-        def fmtmod(self):
-            return '%s%s%s%s%s%s' % (
-                'r' if self.permissions['owner_read'] else '-',
-                'w' if self.permissions['owner_write'] else '-',
-                'x' if self.permissions['owner_pass'] else '-',
-                'r' if self.permissions['other_read'] else '-',
-                'w' if self.permissions['other_write'] else '-',
-                'x' if self.permissions['other_pass'] else '-'
-            )
+        def chmod_all(self, perms):
+            """ Change all permissions using a dict() of the file. """
+            for usr in perms:
+                if not self.chmod(usr, perms[usr]):
+                    return False
+            return True
 
-        def inherit_parmod(self):
+        def fmtmod(self):
+            """ Return formatted permissions of the file. """
+            fmt_res = dict()
+            for usr in self.permissions:
+                fmt_res[usr] = '%s%s%s' % (
+                    'r' if self.permissions[usr]['read'] else '-',
+                    'w' if self.permissions[usr]['write'] else '-',
+                    'x' if self.permissions[usr]['inherit'] else '-'
+                )
+            return fmt_res
+
+        def inherit_parmod(self, usr):
+            """ Inherit permissions of 'usr' from parent. """
             if not self.parent:
                 return False
-            if self.permissions['owner_pass']:
-                for s in ['read', 'write', 'pass']:
-                    self.permissions['owner_%s' % s] = self.parent.permissions['owner_%s' % s]
-            if self.permissions['other_pass']:
-                for s in ['read', 'write', 'pass']:
-                    self.permissions['other_%s' % s] = self.parent.permissions['other_%s' % s]
+            if usr not in self.parent.permissions:
+                return False
+            if not self.parent.permissions[usr]['inherit']:
+                return True
+            self.permissions[usr] = dict()
+            for s in ['read', 'write', 'inherit']:
+                self.permissions[usr][s] = self.parent.permissions[usr][s]
+            return True
+
+        def inherit_parmod_all(self):
+            """ Inherit all permission of 'usr's parent. """
+            if not self.parent:
+                return False
+            for usr in self.parent.permissions:
+                if not self.inherit_parmod(usr):
+                    return False
             return True
 
         pass
