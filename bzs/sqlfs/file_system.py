@@ -19,8 +19,8 @@ class Filesystem:
                           identifier pointing to the directory or the file.
             is_dir      - Whether is a directory or not
             file_name   - The actual file / directory name given by the user
-            owners      - A set() of owners in string handles.
-            permissions - A dict() of allowed permissions.
+            owner       - The string handle of the owner.
+            permissions - A dict() of users with dict() of allowed permissions.
             upload_time - The time uploaded / copied / moved to server
             f_uuid      - If a file them this indicates its FileStorage UUID.
 
@@ -321,7 +321,7 @@ class Filesystem:
         # Uploading / committing data
         if self.fs_db.execute("SELECT uuid FROM file_system WHERE uuid = %s;", (n_uuid,)):
             return self.__update_in_db(item) # Existed, updating instead.
-        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owners, permissions, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files))
+        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owner, permissions, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files))
         return
 
     def __make_root(self):
@@ -447,7 +447,7 @@ class Filesystem:
         # This should never happen!
         return file_name
 
-    def __mkfile(self, path_parent, file_name, owners, content_stream):
+    def __mkfile(self, path_parent, file_name, owner, content_stream):
         """ Inject object into filesystem, while passing in content. The content
         itself would be indexed in FileStorage. """
         path_parent = self.__locate(path_parent)
@@ -458,7 +458,7 @@ class Filesystem:
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Finished assertion.
         n_uuid = self.fs_store.new_unique_file(content_stream)
-        n_fl = self.fsNode(False, file_name, owners, f_uuid=n_uuid, master=self)
+        n_fl = self.fsNode(False, file_name, owner, f_uuid=n_uuid, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
         n_fl.inherit_parmod()
@@ -469,7 +469,7 @@ class Filesystem:
         self.fs_uuid_idx[n_fl.uuid] = n_fl
         return True
 
-    def __mkdir(self, path_parent, file_name, owners):
+    def __mkdir(self, path_parent, file_name, owner):
         """ Inject folder into filesystem. """
         path_parent = self.__locate(path_parent)
         if not path_parent:
@@ -478,7 +478,7 @@ class Filesystem:
         file_name = self.__make_nice_filename(file_name)
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Creating new node.
-        n_fl = self.fsNode(True, file_name, owners, master=self)
+        n_fl = self.fsNode(True, file_name, owner, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
         n_fl.inherit_parmod()
@@ -533,7 +533,7 @@ class Filesystem:
             return file_stream.EmptyFileStream
         return self.fs_store.get_content(item.f_uuid)
 
-    def __copy_recursive(self, item, new_owners):
+    def __copy_recursive(self, item, new_owner):
         """ Copies content of a single object and recursively call all its
         children for recursive copy, targeted as a child under target_par. """
         # We assert item, target_par are all fsNode().
@@ -545,12 +545,12 @@ class Filesystem:
             n_sub.parent = item
             new_sub_items.add(n_sub)
             item.sub_names_idx[i_sub.file_name] = n_sub
-            self.__copy_recursive(n_sub, new_owners)
+            self.__copy_recursive(n_sub, new_owner)
         item.sub_items = new_sub_items
         # Insert into SQL database
         item.upload_time = self.utils_pkg.get_current_time()
-        if new_owners:
-            item.owners = new_owners # Assignment
+        if new_owner:
+            item.owner = new_owner # Assignment
         # These are to maintain tree structures or relations
         if item.is_dir:
             self.__insert_in_db(item)
@@ -558,7 +558,7 @@ class Filesystem:
             self.fs_store.add_unique_file(item.f_uuid)
         return
 
-    def __copy(self, source, target_parent, new_owners=None, return_handle=False):
+    def __copy(self, source, target_parent, new_owner=None, return_handle=False):
         """ Copies content of 'source' (recursively) and hang the target object
         that was copied under the node 'target_parent'. Destination can be the
         same as source folder. If rename required please call the related
@@ -578,7 +578,7 @@ class Filesystem:
         target.parent = target_parent
         target_parent.sub_items.add(target)
         target_parent.sub_names_idx[target.file_name] = target
-        self.__copy_recursive(target, new_owners)
+        self.__copy_recursive(target, new_owner)
         # Assigning and finishing tree connexions
         self.__update_in_db(target_parent)
         return True if not return_handle else target
@@ -668,24 +668,25 @@ class Filesystem:
         self.__update_in_db(item.parent) # At least there is a parent
         return True
 
-    def __chown(self, item, owners):
-        """ Assign owners of 'item' to new owners, recursively. """
+    def __chown(self, item, owner):
+        """ Assign owner of 'item' to new owner, recursively. """
         item = self.__locate(item)
         if not item:
             return False
-        def _chown_recursive(item_, owners_):
+        def _chown_recursive(item_, owner_):
             for sub_ in item_.sub_items:
-                _chown_recursive(sub_, owners_)
-            item_.chown(owners_)
+                _chown_recursive(sub_, owner_)
+            item_.chown(owner_)
             if item_.is_dir:
                 self.__update_in_db(item_)
             return
-        _chown_recursive(item, owners)
+        _chown_recursive(item, owner)
         if not item.is_dir:
             self.__update_in_db(item.parent)
         return True
 
     def __chmod(self, item, perm):
+        """ Change permissions on only one node. """
         item = self.__locate(item)
         if not item:
             return False
@@ -713,7 +714,7 @@ class Filesystem:
 
     def __shell(self):
         cwd = self.fs_root
-        cuser = {'kernel'}
+        cuser = 'kernel'
         cwd_list = ['']
         while True:
             cwd_fl = ''.join((i + '/') for i in cwd_list)
@@ -728,10 +729,10 @@ class Filesystem:
             elif op == 'ls':
                 res = self.list_directory(cwd)
                 # Prettify the result
-                print('Owners      Perms  Upload Time         Size            Filename            ')
-                print('--------------------------------------------------------------------')
+                print('Owner       Perms           Upload Time         Size            Filename            ')
+                print('------------------------------------------------------------------------------------')
                 for item in res:
-                    print('%s%s %s%s%s' % (str(item['owners']).ljust(12), item['permissions'], str(int(item['upload-time'])).ljust(20), str(item['file-size'] if not item['is-dir'] else '').ljust(16), item['file-name']))
+                    print('%s%s %s%s%s' % (str(item['owner']).ljust(12), str(item['permissions']).ljust(16), str(int(item['upload-time'])).ljust(20), str(item['file-size'] if not item['is-dir'] else '').ljust(16), item['file-name']))
                 print('Total: %d' % len(res))
                 print('')
             elif op == 'cat':
@@ -754,7 +755,7 @@ class Filesystem:
                         pass
             elif op == 'chown':
                 dest = self.locate(cmd[1], parent=cwd)
-                self.change_ownership(dest, {cmd[2]})
+                self.change_ownership(dest, cmd[2])
             elif op == 'rename':
                 dest = self.locate(cmd[1], parent=cwd)
                 self.rename(dest, cmd[2])
@@ -795,28 +796,28 @@ class Filesystem:
         ret_result = self.__is_child(node, parent)
         return ret_result
 
-    def create_file(self, path_parent, file_name, owners, content_stream):
+    def create_file(self, path_parent, file_name, owner, content_stream):
         """ Inject object into filesystem, while passing in content. The content
         itself would be indexed in FileStorage. """
-        ret_result = self.__mkfile(path_parent, file_name, owners, content_stream)
+        ret_result = self.__mkfile(path_parent, file_name, owner, content_stream)
         return ret_result
 
-    def create_directory(self, path_parent, file_name, owners):
+    def create_directory(self, path_parent, file_name, owner):
         """ Create directory under path_parent into filesystem. """
-        ret_result = self.__mkdir(path_parent, file_name, owners)
+        ret_result = self.__mkdir(path_parent, file_name, owner)
         return ret_result
 
-    def copy(self, source, target_parent, new_owners=None):
+    def copy(self, source, target_parent, new_owner=None):
         """ Copies content of 'source' (recursively) and hang the target object
         that was copied under the node 'target_parent'. Destination can be the
         same as source folder. If rename required please call the related
         functions separatedly. """
-        ret_result = self.__copy(source, target_parent, new_owners=new_owners)
+        ret_result = self.__copy(source, target_parent, new_owner=new_owner)
         return ret_result
 
-    def copy_with_handle(self, source, target_parent, new_owners=None):
+    def copy_with_handle(self, source, target_parent, new_owner=None):
         """ Same as copy(), returns HANDLE or None. """
-        ret_result = self.__copy(source, target_parent, new_owners=new_owners, return_handle=True)
+        ret_result = self.__copy(source, target_parent, new_owner=new_owner, return_handle=True)
         return ret_result
 
     def move(self, source, target_parent):
@@ -843,9 +844,9 @@ class Filesystem:
         ret_result = self.__rename(path, file_name)
         return ret_result
 
-    def change_ownership(self, path, owners):
-        """ Assign owners of 'path' to new owners, recursively. """
-        ret_result = self.__chown(path, owners)
+    def change_ownership(self, path, owner):
+        """ Assign owner of 'path' to new owner, recursively. """
+        ret_result = self.__chown(path, owner)
         return ret_result
 
     def change_permissions(self, path, permissions, recursive=False):
@@ -853,10 +854,11 @@ class Filesystem:
         to determine whether this is done recursively. The available modes and
         representations are:
 
-            perm = '  r    w    x    |    r    w     x  '
-                         Owners |        Non-owners  |
-                   Read  Write  |       Read Write   |
-             Effect sub_files <-+ Effect sub_files <-+
+            perm = '  r    w    x'
+                   Read  Write  Inherit subfiles
+
+            Whereas the permissions should be a dict from each user / usergroup
+            to a certain 'perm' string.
 
         In 'read' mode, sub_files would not be seen if denied access at a parent
             directory.
@@ -869,18 +871,14 @@ class Filesystem:
         return ret_result
 
     def expunge_user_ownership(self, handle):
-        """ Must only be called from kernel / system, used when removing a usergroup
-        or a user. Its ownership is expunged from the system, and replaced by the
-        file node's parent. """
+        """ Must only be called from kernel / system, used when removing a
+        usergroup or a user. Its ownership is expunged from the system, and
+        replaced by the file node's parent. """
         root = self.fs_root
         def __exp_uown(node, handle):
             for sub in node.sub_items:
-                if handle in sub.owners:
-                    # Expunge its ownership with respect to the parent ownership
-                    sub.owners.remove(handle)
-                    if not sub.owners:
-                        for i in node.owners:
-                            sub.owners.add(i)
+                if sub.owner == handle:
+                    sub.owner = 'public' if sub.parent else sub.parent.owner
                     # Update in filesystem database
                     self.__update_in_db(sub)
                 # Iterating...
@@ -896,7 +894,7 @@ class Filesystem:
             file-name   - File name
             file-size   - File size
             is-dir      - Whether is directory
-            owners      - The handles of the owners
+            owner       - The handles of the owner
             upload-time - Time uploaded, in float since epoch.
 
         The result should always be a list, and please index it with your own
