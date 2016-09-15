@@ -13,7 +13,10 @@ while True:
         sqlfs.Filesystem.shell()
     except KeyboardInterrupt:
         break
-    except Exception:
+    except EOFError:
+        break
+    except Exception as err:
+        raise err
         continue
     break
 

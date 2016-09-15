@@ -79,8 +79,7 @@ class Filesystem:
         def duplicate(self):
             """ Create duplicate (mutation-invulnerable) of this node with
             a different UUID. """
-            n_fl = self.master.fsNode(self.is_dir, self.file_name, self.owner,
-                master=self.master)
+            n_fl = self.master.fsNode(is_dir=self.is_dir, file_name=self.file_name, owner=self.owner, master=self.master)
             n_fl.permissions = copy.copy(self.permissions)
             # n_fl.uuid = None # Disabled due to new UUID necessity
             n_fl.upload_time = self.upload_time
@@ -327,12 +326,12 @@ class Filesystem:
     def __make_root(self):
         """ Create root that didn't exist before. """
         # Creating items
-        itm_root = self.fsNode(True, '', 'kernel', permissions={'':'r--','kernel':'rw-'}, master=self)
-        itm_system = self.fsNode(True, 'System', 'kernel', permissions={'':'--x','kernel':'rw-'}, master=self)
-        itm_public = self.fsNode(True, 'Public', 'public', permissions={'':'rwx','kernel':'rwx'}, master=self)
-        itm_groups = self.fsNode(True, 'Groups', 'kernel', permissions={'':'r-x','kernel':'rwx'}, master=self)
-        itm_users = self.fsNode(True, 'Users', 'kernel', permissions={'':'r-x','kernel':'rwx'}, master=self)
-        itm_kernel_folder = self.fsNode(True, 'kernel', 'kernel', permissions={'':'--x','kernel':'rwx'}, master=self)
+        itm_root = self.fsNode(is_dir=True, file_name='', owner='kernel', permissions={'':'r-x'}, master=self)
+        itm_system = self.fsNode(is_dir=True, file_name='System', owner='kernel', permissions={'':'--x'}, master=self)
+        itm_public = self.fsNode(is_dir=True, file_name='Public', owner='public', permissions={'':'rwx'}, master=self)
+        itm_groups = self.fsNode(is_dir=True, file_name='Groups', owner='kernel', permissions={'':'r-x'}, master=self)
+        itm_users = self.fsNode(is_dir=True, file_name='Users', owner='kernel', permissions={'':'r-x'}, master=self)
+        itm_kernel_folder = self.fsNode(is_dir=True, file_name='kernel', owner='kernel', permissions={'':'--x'}, master=self)
         # Removing extra data and linking
         large_set = {itm_system, itm_public, itm_groups, itm_users}
         # Inserting into SQL database
@@ -413,7 +412,7 @@ class Filesystem:
         file_name = re.sub(r'[\\/*<>?`\'"|\r\n]', r'', file_name)
         if len(file_name) <= 0:
             file_name = 'Empty name'
-        if file_name == '.' or '..':
+        if file_name in {'.', '..'}:
             file_name = 'Dots'
         return file_name
 
@@ -458,10 +457,10 @@ class Filesystem:
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Finished assertion.
         n_uuid = self.fs_store.new_unique_file(content_stream)
-        n_fl = self.fsNode(False, file_name, owner, f_uuid=n_uuid, master=self)
+        n_fl = self.fsNode(is_dir=False, file_name=file_name, owner=owner, permissions={'':'---','kernel':'rw-',owner:'rw-'}, f_uuid=n_uuid, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
-        n_fl.inherit_parmod()
+        n_fl.inherit_parmod_all()
         path_parent.sub_items.add(n_fl)
         path_parent.sub_names_idx[file_name] = n_fl
         self.__update_in_db(path_parent)
@@ -478,10 +477,10 @@ class Filesystem:
         file_name = self.__make_nice_filename(file_name)
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Creating new node.
-        n_fl = self.fsNode(True, file_name, owner, master=self)
+        n_fl = self.fsNode(is_dir=True, file_name=file_name, owner=owner, permissions={'':'---',owner:'rw-'}, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
-        n_fl.inherit_parmod()
+        n_fl.inherit_parmod_all()
         path_parent.sub_items.add(n_fl)
         path_parent.sub_names_idx[file_name] = n_fl
         self.__update_in_db(path_parent)
@@ -737,7 +736,10 @@ class Filesystem:
                 print('')
             elif op == 'cat':
                 dest = self.locate(cmd[1], parent=cwd)
-                print(self.get_content(dest).read())
+                try:
+                    print(self.get_content(dest).read())
+                except:
+                    print('The inquired file did not exist (Filename misspelling?)')
             elif op == 'cd':
                 if cmd[1] == '..':
                     cwd_dest = cwd.parent
@@ -756,6 +758,9 @@ class Filesystem:
             elif op == 'chown':
                 dest = self.locate(cmd[1], parent=cwd)
                 self.change_ownership(dest, cmd[2])
+            elif op == 'chmod':
+                dest = self.locate(cmd[1], parent=cwd)
+                dest.chmod(cmd[2], cmd[3])
             elif op == 'rename':
                 dest = self.locate(cmd[1], parent=cwd)
                 self.rename(dest, cmd[2])
