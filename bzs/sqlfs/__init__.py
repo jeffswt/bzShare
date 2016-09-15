@@ -27,7 +27,7 @@ FilesystemPermissions = file_system_permissions.FilesystemPermissions(
     filesystem = Filesystem)
 
 ################################################################################
-# Exported file-system functions, thread-safe, permission-safe.
+# Exported file-system functions, permission-safe.
 
 def create_file_handle(mode='read', est_length=1024**8, obj_oid=0, obj_data=b''):
     """Returns a new file stream object which does nothing to the filesystem
@@ -46,9 +46,8 @@ def create_file(path_parent, file_name, content_stream, user=None):
     then the creation would be denied."""
     if user and not FilesystemPermissions.writable(path_parent, user):
         return False
-    if user: usr_handle = user.handle
-    else: usr_handle = 'public'
-    ret_result = Filesystem.create_file(path_parent, file_name, {usr_handle}, content_stream)
+    usr_handle = user.handle if user else 'public'
+    ret_result = Filesystem.create_file(path_parent, file_name, usr_handle, content_stream)
     return ret_result
 
 def create_directory(path_parent, file_name, user=None):
@@ -56,9 +55,8 @@ def create_directory(path_parent, file_name, user=None):
     not writable, then the creation would be denied."""
     if user and not FilesystemPermissions.writable(path_parent, user):
         return False
-    if user: usr_handle = user.handle
-    else: usr_handle = 'public'
-    ret_result = Filesystem.create_directory(path_parent, file_name, {usr_handle})
+    usr_handle = user.handle if user else 'public'
+    ret_result = Filesystem.create_directory(path_parent, file_name, usr_handle)
     return ret_result
 
 def copy(source, target_parent, user=None):

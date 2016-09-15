@@ -4,7 +4,7 @@ import copy
 from .. import users
 
 class FilesystemPermissions:
-    """Manages the permissions of the filesystem, separated from the main
+    """ Manages the permissions of the filesystem, separated from the main
     filesystem manager. This requires the use of user management, which is
     equipped in the users module.
 
@@ -13,7 +13,7 @@ class FilesystemPermissions:
 
     Specific operations on the file system should also call the post-process
     procedures in this class for special security precautions, to prevent the
-    user from viewing anything inappropriate."""
+    user from viewing anything inappropriate. """
 
     def __init__(self, filesystem=None):
         if not filesystem:
@@ -22,37 +22,23 @@ class FilesystemPermissions:
         return
 
     def __accessible(self, node, user, mode, check_parent=False):
-        """Wrapping function for determining a single attribute."""
+        """ Wrapping function for determining a single attribute. """
         # Kernel has ultimate access to files
         if user.handle in {'kernel'}:
             return True
         # Otherwise normal users
-        grp = 'owner' if users.is_owner(user, node.owners) else 'other'
-        # Checking if its parents' owners has a usergroup whose admin is 'user'
-        it_node = node
-        while it_node != self.fs.fs_root and grp == 'other':
-            it_node = it_node.parent
-            for ownr in it_node.owners:
-                try:
-                    usr_grp = users.get_usergroup_by_name(ownr)
-                    if user.handle == usr_grp.admin:
-                        grp = 'owner'
-                        break
-                except:
-                    pass
-            continue
-        # Then...
-        res_1 = node.permissions['%s_%s' % (grp, mode)]
+        sel_usr = user.handle if user.handle in node.permissions else ''
+        res = node.permissions[sel_usr][mode]
         if node.parent and check_parent:
-            grp2 = 'owner' if users.is_owner(user, node.parent.owners) else 'other'
-            res_2 = node.parent.permissions['%s_%s' % (grp2, mode)] if node.parent.permissions['%s_%s' % (grp2, 'pass')] else True
-        else:
-            res_2 = True
-        return res_1 and res_2
+            sel_usr_2 = user.handle if user.handle in node.parent.permissions else ''
+            if node.parent.permissions[sel_usr_2]['inherit']:
+                res = res and node.parent.permissions[sel_usr_2][mode]
+            pass
+        return res
 
     def readable(self, node, user, parent=None):
-        """Whether an object is readable. If one of its parents are unreadable,
-        then itself will also be unreadable."""
+        """ Whether an object is readable. If one of its parents are unreadable,
+        then itself will also be unreadable. """
         node = self.fs.locate(node, parent)
         if not node:
             return False
@@ -67,8 +53,8 @@ class FilesystemPermissions:
         return res
 
     def readable_all(self, path, user, parent=None):
-        """Check permissions of a folder whether all its subfolders are
-        readable."""
+        """ Check permissions of a folder whether all its subfolders are
+        readable. """
         node = self.fs.locate(path, parent)
         if not node:
             return False
@@ -83,24 +69,24 @@ class FilesystemPermissions:
         return _rd_all(node, user)
 
     def writable(self, node, user, parent=None):
-        """Whether an object is writable. It only matters whether itself allows
-        it to be written."""
+        """ Whether an object is writable. It only matters whether itself allows
+        it to be written. """
         node = self.fs.locate(node, parent)
         if not node:
             return False
         return self.__accessible(node, user, 'write')
 
     def writable_self(self, node, user, parent=None):
-        """Whether manipulating an object itself is available according to its
-        parent node."""
+        """ Whether manipulating an object itself is available according to its
+        parent node. """
         node = self.fs.locate(node, parent)
         if not node:
             return False
         return self.__accessible(node, user, 'write', check_parent=True)
 
     def writable_all(self, path, user, parent=None):
-        """Check permissions of a folder whether it should be writable - all of
-        its contents and subfolders should be writable."""
+        """ Check permissions of a folder whether it should be writable - all of
+        its contents and subfolders should be writable. """
         node = self.fs.locate(path, parent)
         if not node:
             return False
@@ -119,8 +105,8 @@ class FilesystemPermissions:
         return self.readable_all(path, user, parent) and self.writable_all(path, user, parent)
 
     def copy_reown(self, path, user, parent=None):
-        """Reset ownership of a folder, and if ownership does not gurantee
-        the user read access, then remove this file."""
+        """ Reset ownership of a folder, and if ownership does not gurantee
+        the user read access, then remove this file. """
         node = self.fs.locate(path, parent)
         if not node:
             return False

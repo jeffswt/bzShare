@@ -104,8 +104,9 @@ class Filesystem:
             self.permissions = dict()
             standard = 'rwx'
             indices = ['read', 'write', 'inherit']
+            self.permissions[usr] = dict()
             for i in range(0, 3):
-                self.permissions[indices[i]] = (perm[i] == standard[i])
+                self.permissions[usr][indices[i]] = (perm[i] == standard[i])
             return True
 
         def chmod_all(self, perms):
@@ -131,7 +132,7 @@ class Filesystem:
             fml = self.fmtmod()
             res = list()
             for usr in fml:
-                res.append(usr, fml[usr])
+                res.append([usr, fml[usr]])
             return res
 
         def inherit_parmod(self, usr):
@@ -265,7 +266,7 @@ class Filesystem:
         n_uuid = item.uuid
         n_file_name = item.file_name
         n_owner = item.owner
-        n_permissions__ = item.fmtmod_list()
+        n_permissions = item.fmtmod_list()
         n_upload_time = item.upload_time
         n_sub_folders = list()
         n_sub_files = list()
@@ -277,16 +278,15 @@ class Filesystem:
                     str(i_sub.uuid),
                     str(i_sub.file_name),
                     str(i_sub.owner),
-                    ';'.join('/'.join(fr) for fr in i_sub.fmtmod_list())
+                    ';'.join('/'.join(fr) for fr in i_sub.fmtmod_list()),
                     "%f" % i_sub.upload_time,
                     str(i_sub.f_uuid)
                 ])
-
         # Formatting string
         return (n_uuid, n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files)
 
     def __update_in_db(self, item):
-        """ ush updating commit to Database for changes. Does not affect
+        """ Push updating commit to Database for changes. Does not affect
         nonexistent nodes in Database. Otherwise please use __insert_in_db().
 
         Operation would not be redirected to insertion because of recursive
@@ -327,11 +327,11 @@ class Filesystem:
     def __make_root(self):
         """ Create root that didn't exist before. """
         # Creating items
-        itm_root = self.fsNode(True, '', 'kernel', permissions={'':'r--','kernel':'rw-'}'rw-r--', master=self)
+        itm_root = self.fsNode(True, '', 'kernel', permissions={'':'r--','kernel':'rw-'}, master=self)
         itm_system = self.fsNode(True, 'System', 'kernel', permissions={'':'--x','kernel':'rw-'}, master=self)
-        itm_public = self.fsNode(True, 'Public', 'public', permissions={'':'r-x','public':'rwx','kernel':'rwx'}, master=self)
-        itm_groups = self.fsNode(True, 'Groups', 'kernel', permissions={'':'r-x','kernel':'rwx'}'rwxr-x', master=self)
-        itm_users = self.fsNode(True, 'Users', 'kernel', permissions={'':'r-x','kernel':'rwx'}'rwxr-x', master=self)
+        itm_public = self.fsNode(True, 'Public', 'public', permissions={'':'rwx','kernel':'rwx'}, master=self)
+        itm_groups = self.fsNode(True, 'Groups', 'kernel', permissions={'':'r-x','kernel':'rwx'}, master=self)
+        itm_users = self.fsNode(True, 'Users', 'kernel', permissions={'':'r-x','kernel':'rwx'}, master=self)
         itm_kernel_folder = self.fsNode(True, 'kernel', 'kernel', permissions={'':'--x','kernel':'rwx'}, master=self)
         # Removing extra data and linking
         large_set = {itm_system, itm_public, itm_groups, itm_users}
