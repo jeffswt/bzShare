@@ -104,8 +104,8 @@ class DatabaseType:
             CREATE TABLE file_system(
                 uuid        UUID,
                 file_name   TEXT,
-                owners      TEXT[],
-                permissions TEXT,
+                owner       TEXT,
+                permissions TEXT[][],
                 upload_time DOUBLE PRECISION,
                 sub_folders UUID[],
                 sub_files   TEXT[][]

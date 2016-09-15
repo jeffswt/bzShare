@@ -6,14 +6,13 @@ import uuid as uuid_package
 from . import file_stream
 
 class Filesystem:
-    """This is a virtual filesystem based on a relational PostgreSQL database.
+    """ This is a virtual filesystem based on a relational PostgreSQL database.
     We might call it a SQLFS. Its tree-topological structure enables it to index
     files and find siblings quickly. Yet without the B-Tree optimization it
-    would not be easy to maintain a high performance.
-    """
+    would not be easy to maintain a high performance. """
 
     class fsNode:
-        """This is a virtual node on a virtual filesystem SQLFS. The virtual
+        """ This is a virtual node on a virtual filesystem SQLFS. The virtual
         node contains the following data:
 
             uuid        - The unique identifier: This uuid would be the
@@ -31,8 +30,7 @@ class Filesystem:
             sub_items     - Set of children.
             sub_names_idx - Dictionary of children indexed by name.
 
-        Do process with caution, and use exported methods only.
-        """
+        Do process with caution, and use exported methods only. """
 
         file_name     = ''
         is_dir        = False
@@ -50,8 +48,8 @@ class Filesystem:
         sub_items     = set()
         sub_names_idx = dict()
 
-        def __init__(self, is_dir, file_name, owner, permissions={'':'--x'}, uuid=None, upload_time=None, sub_folders=set(), sub_files=set(), f_uuid=None, master=None):
-            """Load tree of all nodes in SQLFS filesystem."""
+        def __init__(self, is_dir=True, file_name='Untitled', owner='kernel', permissions={'':'--x'}, uuid=None, upload_time=None, sub_folders=set(), sub_files=set(), f_uuid=None, master=None):
+            """ Load tree of all nodes in SQLFS filesystem. """
             # The filesystem / master of the node
             self.master = master
             # Assigning data
@@ -79,8 +77,8 @@ class Filesystem:
             return
 
         def duplicate(self):
-            """Create duplicate (mutation-invulnerable) of this node with
-            a different UUID."""
+            """ Create duplicate (mutation-invulnerable) of this node with
+            a different UUID. """
             n_fl = self.master.fsNode(self.is_dir, self.file_name, self.owner,
                 master=self.master)
             n_fl.permissions = copy.copy(self.permissions)
@@ -128,6 +126,14 @@ class Filesystem:
                 )
             return fmt_res
 
+        def fmtmod_list(self):
+            """ Return (listized) formatted permissions of the file. """
+            fml = self.fmtmod()
+            res = list()
+            for usr in fml:
+                res.append(usr, fml[usr])
+            return res
+
         def inherit_parmod(self, usr):
             """ Inherit permissions of 'usr' from parent. """
             if not self.parent:
@@ -153,13 +159,13 @@ class Filesystem:
         pass
 
     def __init__(self, database=None, filestorage=None, utils_package=None):
-        """Load files from database, must specify these options or will revoke
+        """ Load files from database, must specify these options or will revoke
         AttributeError:
 
             database = The database
             filestorage = The file storage which holds handles for files
 
-        Should return nothing elsewise."""
+        Should return nothing elsewise. """
         if not database:
             raise AttributeError('Must provide database')
         if not filestorage:
@@ -172,33 +178,41 @@ class Filesystem:
         self.fs_store    = filestorage
         self.utils_pkg   = utils_package
         # Testforing items in database for building tree.
-        for item in self.fs_db.execute("SELECT uuid, file_name, owners, permissions, upload_time, sub_folders, sub_files FROM file_system"):
+        for item in self.fs_db.execute("SELECT uuid, file_name, owner, permissions, upload_time, sub_folders, sub_files FROM file_system"):
             # Splitting tuple into parts
-            uuid, file_name, owners, permissions, upload_time, sub_folders, sub_files = item
+            uuid, file_name, owner, permissions__, upload_time, sub_folders, sub_files = item
+            permissions = dict()
+            for lst in permissions__:
+                permissions[lst[0]] = lst[1]
             # Getting sub files which are expensive stored separately
             n_sub_files = set()
             for fil_idx in sub_files:
                 # This is where the order goes, BEAWARE
                 s_uuid = fil_idx[0]
                 s_file_name = fil_idx[1]
-                s_owners = set(fil_idx[2].split(';'))
-                s_permissions = fil_idx[3]
+                s_owner = fil_idx[2]
+                # Set permissions
+                s_permissions = dict()
+                for lst in list(fr.split('/') for fr in fil_idx[3].split(';')):
+                    s_permissions[lst[0]] = lst[1]
+                # Set upload time
                 try:
                     s_upload_time = float(fil_idx[4])
                 except:
                     s_upload_time = self.utils_pkg.get_current_time()
+                # File UUID uploading
                 s_f_uuid = uuid_package.UUID(fil_idx[5])
                 if s_f_uuid not in self.fs_store.st_uuid_idx:
                     continue
-                # Pushing...
-                s_file = self.fsNode(False, s_file_name, s_owners, permissions=s_permissions, uuid=s_uuid, upload_time=s_upload_time, f_uuid=s_f_uuid, master=self)
+                # Pushing into structure...
+                s_file = self.fsNode(is_dir=False, file_name=s_file_name, owner=s_owner, permissions=s_permissions, uuid=s_uuid, upload_time=s_upload_time, f_uuid=s_f_uuid, master=self)
                 n_sub_files.add(s_file)
                 self.fs_uuid_idx[s_uuid] = s_file
             # Getting sub folders as a set but not templating them
             n_sub_folders = set() # Since reference is passed, should not manipulate this further
             for fol_idx in sub_folders:
                 n_sub_folders.add(fol_idx)
-            fold_elem = self.fsNode(True, file_name, set(owners), permissions=permissions, uuid=uuid, upload_time=upload_time, sub_folders=n_sub_folders, sub_files=n_sub_files, master=self)
+            fold_elem = self.fsNode(is_dir=True, file_name=file_name, owner=owner, permissions=permissions, uuid=uuid, upload_time=upload_time, sub_folders=n_sub_folders, sub_files=n_sub_files, master=self)
             self.fs_uuid_idx[uuid] = fold_elem
         # Done importing from SQL database, now attempting to refurbish connexions
         for uuid in self.fs_uuid_idx:
@@ -247,11 +261,11 @@ class Filesystem:
         return
 
     def __sqlify_fsnode(self, item):
-        """Turns a node into SQL-compatible node."""
+        """ Turns a node into SQL-compatible node. """
         n_uuid = item.uuid
         n_file_name = item.file_name
-        n_owners = list(item.owners)
-        n_permissions = item.fmtmod()
+        n_owner = item.owner
+        n_permissions__ = item.fmtmod_list()
         n_upload_time = item.upload_time
         n_sub_folders = list()
         n_sub_files = list()
@@ -262,21 +276,21 @@ class Filesystem:
                 n_sub_files.append([
                     str(i_sub.uuid),
                     str(i_sub.file_name),
-                    ';'.join(i_sub.owners),
-                    i_sub.fmtmod(),
+                    str(i_sub.owner),
+                    ';'.join('/'.join(fr) for fr in i_sub.fmtmod_list())
                     "%f" % i_sub.upload_time,
                     str(i_sub.f_uuid)
                 ])
 
         # Formatting string
-        return (n_uuid, n_file_name, n_owners, n_permissions, n_upload_time, n_sub_folders, n_sub_files)
+        return (n_uuid, n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files)
 
     def __update_in_db(self, item):
-        """Push updating commit to Database for changes. Does not affect
+        """ ush updating commit to Database for changes. Does not affect
         nonexistent nodes in Database. Otherwise please use __insert_in_db().
 
         Operation would not be redirected to insertion because of recursive
-        risks that could potentially damage and overflow the process."""
+        risks that could potentially damage and overflow the process. """
         # This applies to items in the
         # We assert that item should be Node.
         item = self.__locate(item)
@@ -288,37 +302,37 @@ class Filesystem:
             if not item.is_dir:
                 return False # I should raise, by a matter of fact
         # Collecting data
-        n_uuid, n_file_name, n_owners, n_permissions, n_upload_time, n_sub_folders, n_sub_files = self.__sqlify_fsnode(item)
+        n_uuid, n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files = self.__sqlify_fsnode(item)
         # Uploading / committing data
         if not self.fs_db.execute("SELECT uuid FROM file_system WHERE uuid = %s;", (n_uuid,)):
             return False # You already stated this is an updating operation!
-        self.fs_db.execute("UPDATE file_system SET file_name = %s, owners = %s, permissions = %s, upload_time = %s, sub_folders = %s, sub_files = %s WHERE uuid = %s;", (n_file_name, n_owners, n_permissions, n_upload_time, n_sub_folders, n_sub_files, n_uuid))
+        self.fs_db.execute("UPDATE file_system SET file_name = %s, owner = %s, permissions = %s, upload_time = %s, sub_folders = %s, sub_files = %s WHERE uuid = %s;", (n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files, n_uuid))
         return True
 
     def __insert_in_db(self, item):
-        """Create filesystem record of directory 'item' inside database. You
+        """ Create filesystem record of directory 'item' inside database. You
         should not insert something that already existed. However:
 
         We have had a precaution for this. Update operations would be taken
-        automatically instead."""
+        automatically instead. """
         if not item.is_dir:
             return False # Must be directory...
-        n_uuid, n_file_name, n_owners, n_permissions, n_upload_time, n_sub_folders, n_sub_files = self.__sqlify_fsnode(item)
+        n_uuid, n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files = self.__sqlify_fsnode(item)
         # Uploading / committing data
         if self.fs_db.execute("SELECT uuid FROM file_system WHERE uuid = %s;", (n_uuid,)):
             return self.__update_in_db(item) # Existed, updating instead.
-        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owners, permissions, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, list(n_owners), n_permissions, n_upload_time, n_sub_folders, n_sub_files))
+        self.fs_db.execute("INSERT INTO file_system (uuid, file_name, owners, permissions, upload_time, sub_folders, sub_files) VALUES (%s, %s, %s, %s, %s, %s, %s);", (n_uuid, n_file_name, n_owner, n_permissions, n_upload_time, n_sub_folders, n_sub_files))
         return
 
     def __make_root(self):
-        """Create root that didn't exist before."""
+        """ Create root that didn't exist before. """
         # Creating items
-        itm_root = self.fsNode(True, '', {'kernel'}, permissions='rw-r--', master=self)
-        itm_system = self.fsNode(True, 'System', {'kernel'}, permissions='rw---x', master=self)
-        itm_public = self.fsNode(True, 'Public', {'public'}, permissions='rwxr-x', master=self)
-        itm_groups = self.fsNode(True, 'Groups', {'kernel'}, permissions='rwxr-x', master=self)
-        itm_users = self.fsNode(True, 'Users', {'kernel'}, permissions='rwxr-x', master=self)
-        itm_kernel_folder = self.fsNode(True, 'kernel', {'kernel'}, permissions='rwx--x', master=self)
+        itm_root = self.fsNode(True, '', 'kernel', permissions={'':'r--','kernel':'rw-'}'rw-r--', master=self)
+        itm_system = self.fsNode(True, 'System', 'kernel', permissions={'':'--x','kernel':'rw-'}, master=self)
+        itm_public = self.fsNode(True, 'Public', 'public', permissions={'':'r-x','public':'rwx','kernel':'rwx'}, master=self)
+        itm_groups = self.fsNode(True, 'Groups', 'kernel', permissions={'':'r-x','kernel':'rwx'}'rwxr-x', master=self)
+        itm_users = self.fsNode(True, 'Users', 'kernel', permissions={'':'r-x','kernel':'rwx'}'rwxr-x', master=self)
+        itm_kernel_folder = self.fsNode(True, 'kernel', 'kernel', permissions={'':'--x','kernel':'rwx'}, master=self)
         # Removing extra data and linking
         large_set = {itm_system, itm_public, itm_groups, itm_users}
         # Inserting into SQL database
@@ -354,9 +368,9 @@ class Filesystem:
         return
 
     def __locate(self, path, parent=None):
-        """Locate the fsNode() of the location 'path'. If 'parent' is given and
+        """ Locate the fsNode() of the location 'path'. If 'parent' is given and
         as it should be a fsNode(), the function look to the nodes directly
-        under this, non-recursively."""
+        under this, non-recursively. """
         # On the case it is a referring location, path should be str.
         if parent:
             if type(parent) in [str, list]:
@@ -386,7 +400,7 @@ class Filesystem:
         return item
 
     def __is_child(self, node, parent):
-        """Determines whether node is a child of parent."""
+        """ Determines whether node is a child of parent. """
         while node:
             if node == parent:
                 return True
@@ -394,15 +408,17 @@ class Filesystem:
         return False
 
     def __make_nice_filename(self, file_name):
-        """Create a HTML-friendly file name that does not support and does not
-        allow cross site scripting (XSS)."""
+        """ Create a HTML-friendly file name that does not support and does not
+        allow cross site scripting (XSS). """
         file_name = re.sub(r'[\\/*<>?`\'"|\r\n]', r'', file_name)
         if len(file_name) <= 0:
             file_name = 'Empty name'
+        if file_name == '.' or '..':
+            file_name = 'Dots'
         return file_name
 
     def __resolve_conflict(self, file_name, parent):
-        """Rename 'file_name' if necessary in order to make operations
+        """ Rename 'file_name' if necessary in order to make operations
         successful in case of confliction that disrupts the SQLFS. The renamed
         file / folder should be named like this:
 
@@ -410,7 +426,7 @@ class Filesystem:
         New Text Document (2).txt
         New Text Document (3).txt
 
-        Et cetera."""
+        Et cetera. """
         parent = self.__locate(parent)
         if not parent:
             return file_name
@@ -432,8 +448,8 @@ class Filesystem:
         return file_name
 
     def __mkfile(self, path_parent, file_name, owners, content_stream):
-        """Inject object into filesystem, while passing in content. The content
-        itself would be indexed in FileStorage."""
+        """ Inject object into filesystem, while passing in content. The content
+        itself would be indexed in FileStorage. """
         path_parent = self.__locate(path_parent)
         if not path_parent:
             return False
@@ -454,7 +470,7 @@ class Filesystem:
         return True
 
     def __mkdir(self, path_parent, file_name, owners):
-        """Inject folder into filesystem."""
+        """ Inject folder into filesystem. """
         path_parent = self.__locate(path_parent)
         if not path_parent:
             return False
@@ -475,18 +491,18 @@ class Filesystem:
         return True
 
     def __listdir(self, path):
-        """Creates a list of files in the directory 'path'. Attributes of the returned
+        """ Creates a list of files in the directory 'path'. Attributes of the returned
         result contains:
 
             file-name   - File name
             file-size   - File size
             is-dir      - Whether is directory
-            owners      - The handles of the owners
+            owner       - The handle of the owner
             permissions - The permissions of the file
             upload-time - Time uploaded, in float since epoch.
 
         The result should always be a list, and please index it with your own
-        habits or modify the code."""
+        habits or modify the code. """
         path = self.__locate(path)
         if not path:
             return []
@@ -498,7 +514,7 @@ class Filesystem:
                 attrib['file-name'] = item.file_name
                 attrib['file-size'] = 0 if item.is_dir else self.fs_store.st_uuid_idx[item.f_uuid].size
                 attrib['is-dir'] = item.is_dir
-                attrib['owners'] = item.owners
+                attrib['owner'] = item.owner
                 attrib['permissions'] = item.fmtmod()
                 attrib['upload-time'] = item.upload_time
             except:
@@ -508,7 +524,7 @@ class Filesystem:
         return dirs
 
     def __get_content(self, item):
-        """Gets file stream of binary content of the object and must be file."""
+        """ Gets file stream of binary content of the object and must be file. """
         item = self.__locate(item)
         if not item:
             return file_stream.EmptyFileStream
@@ -518,8 +534,8 @@ class Filesystem:
         return self.fs_store.get_content(item.f_uuid)
 
     def __copy_recursive(self, item, new_owners):
-        """Copies content of a single object and recursively call all its
-        children for recursive copy, targeted as a child under target_par."""
+        """ Copies content of a single object and recursively call all its
+        children for recursive copy, targeted as a child under target_par. """
         # We assert item, target_par are all fsNode().
         new_sub_items = set()
         item.sub_names_idx = dict()
@@ -543,10 +559,10 @@ class Filesystem:
         return
 
     def __copy(self, source, target_parent, new_owners=None, return_handle=False):
-        """Copies content of 'source' (recursively) and hang the target object
+        """ Copies content of 'source' (recursively) and hang the target object
         that was copied under the node 'target_parent'. Destination can be the
         same as source folder. If rename required please call the related
-        functions separatedly."""
+        functions separatedly. """
         source = self.__locate(source)
         target_parent = self.__locate(target_parent)
         if not source or not target_parent:
@@ -568,10 +584,10 @@ class Filesystem:
         return True if not return_handle else target
 
     def __move(self, source, target_parent, return_handle=False):
-        """Copies content of 'source' (recursively) and hang the target object
+        """ Copies content of 'source' (recursively) and hang the target object
         that was copied under the node 'target_parent'. Destination should not
         at all be the same as source folder, otherwise operation would not be
-        executed."""
+        executed. """
         source = self.__locate(source)
         target_parent = self.__locate(target_parent)
         if not source or not target_parent:
@@ -599,8 +615,8 @@ class Filesystem:
         return True if not return_handle else source
 
     def __remove_recursive(self, item):
-        """Removes content of a single object and recursively call all its
-        children for recursive removal."""
+        """ Removes content of a single object and recursively call all its
+        children for recursive removal. """
         # We assert item is fsNode().
         # Remove recursively.
         for i_sub in item.sub_items:
@@ -615,8 +631,8 @@ class Filesystem:
         return
 
     def __remove(self, path):
-        """Removes (recursively) all content of the folder / file itself and
-        all its subdirectories."""
+        """ Removes (recursively) all content of the folder / file itself and
+        all its subdirectories. """
         path = self.__locate(path)
         if not path:
             return False
@@ -634,7 +650,7 @@ class Filesystem:
         return True
 
     def __rename(self, item, file_name):
-        """Renames object 'item' into file_name."""
+        """ Renames object 'item' into file_name. """
         item = self.__locate(item)
         if not item:
             return False
@@ -653,7 +669,7 @@ class Filesystem:
         return True
 
     def __chown(self, item, owners):
-        """Assign owners of 'item' to new owners, recursively."""
+        """ Assign owners of 'item' to new owners, recursively. """
         item = self.__locate(item)
         if not item:
             return False
@@ -682,7 +698,7 @@ class Filesystem:
         return ret
 
     def __chmod_recursive(self, item, perm):
-        """Recursively change permissions."""
+        """ Recursively change permissions. """
         item = self.__locate(item)
         if not item:
             return False
@@ -765,75 +781,75 @@ class Filesystem:
                 print('Unknown command "%s".' % op)
         return
 
-    """Exported functions that are thread-safe."""
+    """ Exported functions that are *NOT* thread-safe. """
 
     def locate(self, path, parent=None):
-        """Locate the fsNode() of the location 'path'. If 'parent' is given and
+        """ Locate the fsNode() of the location 'path'. If 'parent' is given and
         as it should be a fsNode(), the function look to the nodes directly
-        under this, non-recursively."""
+        under this, non-recursively. """
         ret_result = self.__locate(path, parent)
         return ret_result
 
     def is_child(self, node, parent):
-        """Determines whether node is a child of parent."""
+        """ Determines whether node is a child of parent. """
         ret_result = self.__is_child(node, parent)
         return ret_result
 
     def create_file(self, path_parent, file_name, owners, content_stream):
-        """Inject object into filesystem, while passing in content. The content
-        itself would be indexed in FileStorage."""
+        """ Inject object into filesystem, while passing in content. The content
+        itself would be indexed in FileStorage. """
         ret_result = self.__mkfile(path_parent, file_name, owners, content_stream)
         return ret_result
 
     def create_directory(self, path_parent, file_name, owners):
-        """Create directory under path_parent into filesystem."""
+        """ Create directory under path_parent into filesystem. """
         ret_result = self.__mkdir(path_parent, file_name, owners)
         return ret_result
 
     def copy(self, source, target_parent, new_owners=None):
-        """Copies content of 'source' (recursively) and hang the target object
+        """ Copies content of 'source' (recursively) and hang the target object
         that was copied under the node 'target_parent'. Destination can be the
         same as source folder. If rename required please call the related
-        functions separatedly."""
+        functions separatedly. """
         ret_result = self.__copy(source, target_parent, new_owners=new_owners)
         return ret_result
 
     def copy_with_handle(self, source, target_parent, new_owners=None):
-        """Same as copy(), returns HANDLE or None."""
+        """ Same as copy(), returns HANDLE or None. """
         ret_result = self.__copy(source, target_parent, new_owners=new_owners, return_handle=True)
         return ret_result
 
     def move(self, source, target_parent):
-        """Moves content of 'source' (recursively) and hang the target object
+        """ Moves content of 'source' (recursively) and hang the target object
         that was moved under the node 'target_parent'. Destination should not
         at all be the same as source folder, otherwise operation would not be
-        executed."""
+        executed. """
         ret_result = self.__move(source, target_parent)
         return ret_result
 
     def move_with_handle(self, source, target_parent):
-        """Same as move(), returns HANDLE or None."""
+        """ Same as move(), returns HANDLE or None. """
         ret_result = self.__copy(source, target_parent, return_handle=True)
         return ret_result
 
     def remove(self, path):
-        """Removes (recursively) all content of the folder / file itself and
-        all its subdirectories."""
+        """ Removes (recursively) all content of the folder / file itself and
+        all its subdirectories. """
         ret_result = self.__remove(path)
         return ret_result
 
     def rename(self, path, file_name):
-        """Renames object 'path' into file_name."""
+        """ Renames object 'path' into file_name. """
         ret_result = self.__rename(path, file_name)
         return ret_result
 
     def change_ownership(self, path, owners):
-        """Assign owners of 'path' to new owners, recursively."""
+        """ Assign owners of 'path' to new owners, recursively. """
         ret_result = self.__chown(path, owners)
         return ret_result
 
     def change_permissions(self, path, permissions, recursive=False):
-        """Assign permissions of 'item' to new permissions. User has the rights
+        """ Assign permissions of 'item' to new permissions. User has the rights
         to determine whether this is done recursively. The available modes and
         representations are:
 
@@ -845,7 +861,7 @@ class Filesystem:
         In 'read' mode, sub_files would not be seen if denied access at a parent
             directory.
         In 'write' mode, sub_files would not be writable if and only if it
-            itself is not writable or its parent does not allow its writing."""
+            itself is not writable or its parent does not allow its writing. """
         if not recursive:
             ret_result = self.__chmod(path, permissions)
         else:
@@ -853,9 +869,9 @@ class Filesystem:
         return ret_result
 
     def expunge_user_ownership(self, handle):
-        """Must only be called from kernel / system, used when removing a usergroup
+        """ Must only be called from kernel / system, used when removing a usergroup
         or a user. Its ownership is expunged from the system, and replaced by the
-        file node's parent."""
+        file node's parent. """
         root = self.fs_root
         def __exp_uown(node, handle):
             for sub in node.sub_items:
@@ -874,7 +890,7 @@ class Filesystem:
         return
 
     def list_directory(self, path):
-        """Creates a list of files in the directory 'path'. Attributes of the
+        """ Creates a list of files in the directory 'path'. Attributes of the
         returned result contains:
 
             file-name   - File name
@@ -884,18 +900,18 @@ class Filesystem:
             upload-time - Time uploaded, in float since epoch.
 
         The result should always be a list, and please index it with your own
-        habits or modify the code."""
+        habits or modify the code. """
         ret_result = self.__listdir(path)
         return ret_result
 
     def get_content(self, path):
-        """Gets file stream of binary content of the object and returns the
-        file handle."""
+        """ Gets file stream of binary content of the object and returns the
+        file handle. """
         ret_result = self.__get_content(path)
         return ret_result
 
     def shell(self):
-        """Interactive shell for manipulating SQLFS. May be integrated into
+        """ Interactive shell for manipulating SQLFS. May be integrated into
         other utilites in the (far) futuure. Possible commands are:
 
             db command     - Execute 'command' in Database.
@@ -915,7 +931,7 @@ class Filesystem:
             mv src dest    - Move object 'src' to under 'dest' as destination.
             exit           - Exit shell.
 
-        This shell should not be used in production as is not safe."""
+        This shell should not be used in production as is not safe. """
         ret_result = self.__shell()
         return ret_result
     pass
