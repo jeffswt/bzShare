@@ -43,6 +43,7 @@ def main():
             (r'^/files/operation/?', module_files.FilesOperationHandler),
             (r'^/preview/(.*?)/(.*)/?$', module_preview.PreviewHandler),
             (r'^/user/(.*)/?$', module_user.UserActivityHandler),
+            (r'^/user_avatar/(.*)/?$', module_user.UserAvatarHandler),
             (r'^/settings/profile/(.*)/?$', module_settings.ProfileHandler),
             (r'^/settings/profile_edit/(.*)/?$', module_settings.ProfileEditHandler),
             (r'^/settings/usergroups/?$', module_settings.UsergroupHandler),

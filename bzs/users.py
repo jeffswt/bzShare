@@ -24,6 +24,7 @@ class User:
         # These are a set of user-defined options.
         self.usr_name        = usr_name or 'Guest'
         self.usr_description = usr_description or 'The guy who just wanders around.'
+        self.usr_avatar      = None
         # Whether the user is banned.
         self.banned          = False
         # Specify data indefinitely or load from pickle pls.

@@ -109,3 +109,38 @@ class UserActivityHandler(tornado.web.RequestHandler):
         self.flush()
         self.finish()
     pass
+
+class UserAvatarHandler(tornado.web.RequestHandler):
+    SUPPORTED_METHODS = ['GET']
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
+    def get(self, user_name):
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
+
+        future = tornado.concurrent.Future()
+        def get_index_html_async(working_user, user_name):
+            gt_user = users.get_user_by_name(user_name)
+            if not gt_user.usr_avatar:
+                file_data = utils.get_static_data('./static/dist/img/user-guest.png')
+            else:
+                file_data = gt_user.usr_avatar
+            future.set_result(file_data)
+        tornado.ioloop.IOLoop.instance().add_callback(
+            get_index_html_async, working_user, user_name)
+        file_data = yield future
+
+        # File actually exists, sending data
+        self.set_status(200, "OK")
+        self.add_header('Cache-Control', 'max-age=0')
+        self.add_header('Connection', 'close')
+        self.set_header('Content-Type', 'image/png')
+        self.add_header('Content-Length', str(len(file_data)))
+
+        # Push result to client in one blob
+        self.write(file_data)
+        self.flush()
+        self.finish()
+        return self
+    pass
