@@ -447,7 +447,15 @@ class DynamicInterfaceHandler(tornado.web.RequestHandler):
                 raise tornado.web.HTTPError(403)
             upload_data = pickle.dumps(self.request.body)
             if target == 'home-data':
-                print(self.request.body)
+                if self.request.body == b'<!-- RESET -->':
+                    db.Database.execute("DELETE FROM core WHERE index = %s;", ('dynamic_interface_home',))
+                else:
+                    if db.Database.execute("SELECT index FROM core WHERE index = %s;", ('dynamic_interface_home',)):
+                        db.Database.execute("UPDATE core SET data = %s WHERE index = %s;", (upload_data, 'dynamic_interface_home'))
+                    else:
+                        db.Database.execute("INSERT INTO core (index, data) VALUES (%s, %s);", ('dynamic_interface_home', upload_data))
+                    pass
+                pass
             else:
                 raise tornado.web.HTTPError(403)
             future.set_result('')
