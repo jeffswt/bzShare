@@ -28,7 +28,6 @@ class FilesystemPermissions:
             return True
         # Otherwise normal users
         sel_usr = users.select_member(node.permissions, user.handle)
-        print(node.file_name, node.fmtmod(), '***')
         res = node.permissions[sel_usr][mode]
         if node.parent and check_parent:
             sel_usr_2 = users.select_member(node.parent.permissions, user.handle)

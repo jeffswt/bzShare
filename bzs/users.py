@@ -73,6 +73,8 @@ class Usergroup:
         mem = self.master.get_user_by_name(mem)
         if mem.handle == self.admin:
             raise Exception('Cannot kick the administrator of the group.')
+        if mem.handle not in self.members:
+            return
         self.members.remove(mem.handle)
         self.save_data()
         mem.save_data()
@@ -200,15 +202,20 @@ class UserManagerType:
             usr = self.get_user_by_name(usr)
         if usr.handle in {'guest', 'kernel'}:
             raise Exception('Cannot remove system users')
+        # Remove from structure and database
+        if usr.cookie:
+            del self.users_cookies[usr.cookie]
+        del self.users[usr.handle]
         self.usr_db.execute("DELETE FROM users WHERE handle = %s;", (usr.handle,))
         # Unlink usergroups
         for rm_grp in usr.usergroups:
-            if rm_grp.handle == 'public':
-                continue
+            rm_grp = self.get_usergroup_by_name(rm_grp)
             if usr.handle == rm_grp.admin:
                 self.remove_usergroup(rm_grp)
             else:
-                rm_grp.remove_member(usr_handle)
+                rm_grp.remove_member(usr.handle)
+            if rm_grp.handle == 'public':
+                continue
             pass
         # Expunge user's personal data
         sqlfs.remove('/Users/%s/' % usr.handle)

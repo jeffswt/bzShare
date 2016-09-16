@@ -49,7 +49,7 @@ class ProfileHandler(tornado.web.RequestHandler):
     pass
 
 class ProfileEditHandler(tornado.web.RequestHandler):
-    SUPPORTED_METHODS = ['POST']
+    SUPPORTED_METHODS = ['POST', 'GET']
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
@@ -63,20 +63,31 @@ class ProfileEditHandler(tornado.web.RequestHandler):
             # Retrieving JSON data from input
             try:
                 req_data = json.loads(self.request.body.decode('utf-8', 'ignore'))
-                usr_password = req_data['password']
-                usr_password_recheck = req_data['password-recheck']
-                usr_name = req_data['username']
-                usr_desc = req_data['description']
-                # Done getting data, checking validity
-                users.UserManager.create_user_check_password(usr_password, usr_password_recheck)
-                users.UserManager.create_user_check_username(usr_name)
-                users.UserManager.create_user_check_description(usr_desc)
-                # Done validing, now modifying user
-                this_user.password = usr_password
-                this_user.usr_name = usr_name
-                this_user.usr_description = usr_desc
-                # Uploading to SQL database
-                this_user.save_data()
+                if 'dropuser' not in req_data:
+                    # Checking authority
+                    if working_user.handle != 'kernel' and working_user.handle != this_user.handle:
+                        raise Exception('You are unauthorized to perform this action.')
+                    # Not dropping user, only modifying
+                    usr_password = req_data['password']
+                    usr_password_recheck = req_data['password-recheck']
+                    usr_name = req_data['username']
+                    usr_desc = req_data['description']
+                    # Done getting data, checking validity
+                    users.UserManager.create_user_check_password(usr_password, usr_password_recheck)
+                    users.UserManager.create_user_check_username(usr_name)
+                    users.UserManager.create_user_check_description(usr_desc)
+                    # Done validing, now modifying user
+                    this_user.password = usr_password
+                    this_user.usr_name = usr_name
+                    this_user.usr_description = usr_desc
+                    # Uploading to SQL database
+                    this_user.save_data()
+                    pass
+                else:
+                    if working_user.handle != 'kernel' and working_user.handle != this_user.handle:
+                        raise Exception('You are unauthorized to perform this action.')
+                    users.remove_user(this_user)
+                    pass
                 # Outputting successive information
                 file_data = utils.get_static_data('./static/profile_edit_success.html')
                 # Process webpage
@@ -96,6 +107,57 @@ class ProfileEditHandler(tornado.web.RequestHandler):
             future.set_result(file_data)
         tornado.ioloop.IOLoop.instance().add_callback(
             modify_user_async, working_user, this_user)
+        file_data = yield future
+
+        # File actually exists, sending data
+        self.set_status(200, "OK")
+        self.add_header('Cache-Control', 'max-age=0')
+        self.add_header('Connection', 'close')
+        self.set_header('Content-Type', 'text/html; charset=UTF-8')
+        self.add_header('Content-Length', str(len(file_data)))
+
+        # Push result to client in one blob
+        self.write(file_data)
+        self.flush()
+        self.finish()
+        return
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
+    def get(self, targ_act):
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
+
+        future = tornado.concurrent.Future()
+        def get_data_async(working_user, targ_act):
+            targ_act = targ_act.split('+')
+            try:
+                if targ_act[0] == 'dropuser-prompt':
+                    this_user = users.get_user_by_name(targ_act[1])
+                    if working_user.handle != 'kernel' and working_user.handle != this_user.handle:
+                        raise Exception('You are unauthorized to perform this action.')
+                    # Outputting successive information
+                    file_data = utils.get_static_data('./static/profile_remove_user_confirm.html')
+                    # Process webpage
+                    file_data = utils.preprocess_webpage(file_data, working_user,
+                        this_user=this_user,
+                        xsrf_form_html=self.xsrf_form_html()
+                    )
+                else:
+                    raise Exception('Hitherto unbeknownst action invoked.')
+            except Exception as err:
+                err_data = str(err)
+                # Something wrong or inproper had happened
+                file_data = utils.get_static_data('./static/profile_edit_failure.html')
+                # Process webpage
+                file_data = utils.preprocess_webpage(file_data, working_user,
+                    err_data=err_data,
+                    xsrf_form_html=self.xsrf_form_html()
+                )
+                pass
+            future.set_result(file_data)
+        tornado.ioloop.IOLoop.instance().add_callback(
+            get_data_async, working_user, targ_act)
         file_data = yield future
 
         # File actually exists, sending data

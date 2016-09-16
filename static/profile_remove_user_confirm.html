@@ -1,0 +1,72 @@
+<div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+    <h4 class="modal-title">Account Removal Confirmation</h4>
+</div>
+<div class="modal-body">
+    <p>
+        You had just attempted remove an account.
+    </p>
+    <p>
+        You must be aware of the fact that this process is inreversible, which
+        would remove all your personal files, and remove your ownership of all
+        files that you own elsewhere. Your existence would be permanently removed
+        from the server until you make your next registration.
+    </p>
+    <p>
+        If you did not initiate this operation, please close this dialog immediately.
+    </p>
+    <p>
+        If you really do wish to remove this account, enter the handle of the
+        account <strong><i>${this_user.handle}</i></strong> below and confirm dismissal.
+    </p>
+    <p>
+        <div class="form-group has-feedback">
+            <input id="bzsDropUserConfirmText" type="text" class="form-control" placeholder="Enter account handle">
+        </div>
+    </p>
+    <p>
+        Then enter the text <strong><i>delete account</i></strong> in the following
+        form to further confirm account removal.
+    </p>
+    <p>
+        <div class="form-group has-feedback">
+            <input id="bzsDropUserConfirmTextFoo" type="text" class="form-control" placeholder="Confirm account removal">
+        </div>
+    </p>
+    <p><div class="row"><div class="col-xs-12">
+        <button id="bzsDropUserButton" class="btn btn-danger btn-block" onclick="javascript:bzsDropUserFunc();" disabled="disabled">
+            Remove account
+        </button>
+    </div></div></p>
+</div>
+
+<script>
+var bzsDropUserCheckConfirm = function() {
+    if ($('#bzsDropUserConfirmText').val() != '${this_user.handle}' || $('#bzsDropUserConfirmTextFoo').val() != 'delete account')
+        $('#bzsDropUserButton').attr('disabled', 'disabled');
+    else
+        $('#bzsDropUserButton').removeAttr('disabled');
+    return ;
+}
+$('#bzsDropUserConfirmText').bind('input propertychange', bzsDropUserCheckConfirm);
+$('#bzsDropUserConfirmTextFoo').bind('input propertychange', bzsDropUserCheckConfirm);
+
+var bzsDropUserFunc = function() {
+    var form_data = {};
+    form_data['dropuser'] = true;
+    bzsDialogLoadingLoad();
+    $.ajax({
+        method: "POST",
+        url: "/settings/profile_edit/${this_user.handle}",
+        data: JSON.stringify(form_data),
+        dataType: "json",
+        complete: function(data) {
+            bzsDialogTemplateLoadHtml(data.responseText);
+            bzsReloadMainframeRefresh();
+            bzsReloadMainIndex();
+            return ;
+        }
+    });
+    return ;
+}
+</script>

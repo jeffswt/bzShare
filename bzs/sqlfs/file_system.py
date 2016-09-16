@@ -896,13 +896,17 @@ class Filesystem:
         root = self.fs_root
         def __exp_uown(node, handle):
             for sub in node.sub_items:
-                if sub.owner == handle:
-                    sub.owner = 'public' if sub.parent else sub.parent.owner
-                    # Update in filesystem database
-                    self.__update_in_db(sub)
-                # Iterating...
                 __exp_uown(sub, handle)
-            return
+            edited = False
+            if node.owner == handle:
+                node.owner = 'public' if not node.parent else node.parent.owner
+                edited = True
+            if handle in node.permissions:
+                node.inherit_parmod_all()
+                edited = True
+            if edited:
+                self.__update_in_db(node)
+            pass
         __exp_uown(root, handle)
         return
 

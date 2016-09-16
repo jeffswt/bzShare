@@ -22,15 +22,15 @@
     <p>
         <div class="form-group has-feedback">
             <input id="bzsDropGroupConfirmText" type="text" class="form-control" placeholder="Enter usergroup handle">
-            <script>
-            $('#bzsDropGroupConfirmText').bind('input propertychange', function() {
-                if ($(this).val() != '${grp_handle}')
-                    $('#bzsDropGroupButton').attr('disabled', 'disabled');
-                else
-                    $('#bzsDropGroupButton').removeAttr('disabled');
-                return ;
-            });
-            </script>
+        </div>
+    </p>
+    <p>
+        Then enter the text <strong><i>delete group</i></strong> in the following
+        form to further confirm group dismissal.
+    </p>
+    <p>
+        <div class="form-group has-feedback">
+            <input id="bzsDropGroupConfirmTextFoo" type="text" class="form-control" placeholder="Confirm group dismissal">
         </div>
     </p>
     <p><div class="row"><div class="col-xs-12">
@@ -41,6 +41,16 @@
 </div>
 
 <script>
+var bzsDropGroupCheckConfirm = function() {
+    if ($('#bzsDropGroupConfirmText').val() != '${grp_handle}' || $('#bzsDropGroupConfirmTextFoo').val() != 'delete group')
+        $('#bzsDropGroupButton').attr('disabled', 'disabled');
+    else
+        $('#bzsDropGroupButton').removeAttr('disabled');
+    return ;
+}
+$('#bzsDropGroupConfirmText').bind('input propertychange', bzsDropGroupCheckConfirm);
+$('#bzsDropGroupConfirmTextFoo').bind('input propertychange', bzsDropGroupCheckConfirm);
+
 var bzsDropGroupFunc = function() {
     bzsDialogLoadingLoad();
     $.ajax({
@@ -55,3 +65,4 @@ var bzsDropGroupFunc = function() {
     });
     return ;
 }
+</script>
