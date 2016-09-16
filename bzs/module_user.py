@@ -111,7 +111,7 @@ class UserActivityHandler(tornado.web.RequestHandler):
     pass
 
 class UserAvatarHandler(tornado.web.RequestHandler):
-    SUPPORTED_METHODS = ['GET']
+    SUPPORTED_METHODS = ['GET', 'POST']
 
     @tornado.web.asynchronous
     @tornado.gen.coroutine
@@ -120,23 +120,76 @@ class UserAvatarHandler(tornado.web.RequestHandler):
             self.get_cookie('user_active_login', default=''))
 
         future = tornado.concurrent.Future()
-        def get_index_html_async(working_user, user_name):
+        def get_avatar_async(working_user, user_name):
             gt_user = users.get_user_by_name(user_name)
             if not gt_user.usr_avatar:
-                file_data = utils.get_static_data('./static/dist/img/user-guest.png')
+                file_data = ('image/png', utils.get_static_data('./static/dist/img/user-guest.png'))
             else:
                 file_data = gt_user.usr_avatar
             future.set_result(file_data)
         tornado.ioloop.IOLoop.instance().add_callback(
-            get_index_html_async, working_user, user_name)
+            get_avatar_async, working_user, user_name)
+        file_mime, file_data = yield future
+
+        # File actually exists, sending data
+        self.set_status(200, "OK")
+        self.add_header('Cache-Control', 'max-age=0')
+        self.add_header('Connection', 'close')
+        self.set_header('Content-Type', file_mime)
+        self.add_header('Content-Length', str(len(file_data)))
+
+        # Push result to client in one blob
+        self.write(file_data)
+        self.flush()
+        self.finish()
+        return self
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
+    def post(self, user_name):
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
+
+        future = tornado.concurrent.Future()
+        def post_avatar_async(working_user, user_name):
+            gt_user = users.get_user_by_name(user_name)
+            # Those should not be allowed...
+            if working_user.handle != 'kernel' and (working_user.handle != gt_user.handle or gt_user.handle == 'guest'):
+                raise tornado.web.HTTPError(403)
+            img_data = self.request.body
+            # If the length is 0, then it certainly means to delete the avatar
+            if len(img_data) == 0:
+                gt_user.usr_avatar = None
+                gt_user.save_data()
+            # Then we requires an update on avatar...
+            else:
+                # Image size should not be larger than 1 MB.
+                if len(img_data) > 1 * 1024 * 1024:
+                    raise tornado.web.HTTPError(403)
+                # Too small indicates that it's not a valid image.
+                if len(img_data) < 68: # 1px x 1px BMP image is the minimum
+                    raise tornado.web.HTTPError(403)
+                # Detecting MIME type
+                img_mime_idx = {'image/png', 'image/bmp', 'image/jpeg', 'image/tiff'}
+                content_type = self.request.headers['Content-Type']
+                if content_type not in img_mime_idx:
+                    raise tornado.web.HTTPError(403)
+                # Updating to structure and database
+                gt_user.usr_avatar = (content_type, img_data)
+                gt_user.save_data()
+                pass
+            # Done and return values...
+            future.set_result('')
+        tornado.ioloop.IOLoop.instance().add_callback(
+            post_avatar_async, working_user, user_name)
         file_data = yield future
 
         # File actually exists, sending data
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
-        self.set_header('Content-Type', 'image/png')
-        self.add_header('Content-Length', str(len(file_data)))
+        self.set_header('Content-Type', 'text/html; charset=UTF-8')
+        self.add_header('Content-Length', '0')
 
         # Push result to client in one blob
         self.write(file_data)

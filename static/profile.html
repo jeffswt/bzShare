@@ -58,6 +58,20 @@
                 </ul>
                 <div class="tab-content">
                     <div class="active tab-pane" disabled="disabled" id="account-settings">
+                        % if this_user_editable:
+                        <form id="account-avatar-form" class="form-horizontal">
+                            <input id="account-avatar-upload-hidden" type="file" style="display:none; height: 34px; padding-top:4px; width: 225px;">
+                            <div class="form-group">
+                                <label for="inputFile" class="col-sm-2 control-label">Avatar</label>
+                                <div class="col-sm-10">
+                                    <div class="btn-group">
+                                        <button type="submit" class="btn btn-default" id="account-avatar-upload-button">Upload Image (Less than 1MB)</button>
+                                        <button type="submit" class="btn btn-default" id="account-avatar-remove-button">Remove Image</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                        % endif
                         <form id="account-settings-form" class="form-horizontal">
                             ${xsrf_form_html}
                             <div class="form-group">
@@ -94,7 +108,7 @@
                             </div>
                             <div class="form-group">
                                 <div class="col-sm-offset-2 col-sm-10">
-                                    <button type="submit" class="btn btn-danger" ${'disabled="disabled"' if not this_user_editable else ''}>Submit</button>
+                                    <button type="submit" class="btn btn-primary" ${'disabled="disabled"' if not this_user_editable else ''}>Submit</button>
                                 </div>
                             </div>
                         </form>
@@ -113,6 +127,51 @@
 <!-- /.content -->
 
 <script>
+$('#account-avatar-upload-button').click(function(event) {
+    event.preventDefault();
+    $('#account-avatar-upload-hidden').click();
+    return ;
+});
+$('#account-avatar-remove-button').click(function(event) {
+    event.preventDefault();
+    bzsDialogLoadingLoad();
+    var completeCallback = function() {
+        bzsDialogLoadingUnload();
+        bzsReloadMainframeRefresh();
+        bzsReloadMainIndex();
+        return ;
+    }
+    var xml_request = new XMLHttpRequest();
+    xml_request.addEventListener("load", completeCallback, false);
+    xml_request.addEventListener("error", completeCallback, false);
+    xml_request.addEventListener("abort", completeCallback, false);
+    xml_request.open("POST", "/user_avatar/" + "${this_user.handle}");
+    xml_request.send('');
+    return ;
+});
+$('#account-avatar-upload-hidden').change(function() {
+    var target_this = document.getElementById('account-avatar-upload-hidden');
+    if (target_this.files.length != 1)
+        return ;
+    upload_file = target_this.files[0];
+    console.log(upload_file)
+    // Got upload file target, displaying message.
+    bzsDialogLoadingLoad();
+    var completeCallback = function() {
+        bzsDialogLoadingUnload();
+        bzsReloadMainframeRefresh();
+        bzsReloadMainIndex();
+        return ;
+    }
+    var xml_request = new XMLHttpRequest();
+    xml_request.addEventListener("load", completeCallback, false);
+    xml_request.addEventListener("error", completeCallback, false);
+    xml_request.addEventListener("abort", completeCallback, false);
+    xml_request.open("POST", "/user_avatar/" + "${this_user.handle}");
+    xml_request.send(upload_file);
+    return ;
+});
+
 var bzsSettingsUpdateProfile = function(event) {
     event.preventDefault();
     // Sorting data
@@ -137,5 +196,4 @@ var bzsSettingsUpdateProfile = function(event) {
     return ;
 };
 $('#account-settings-form').submit(bzsSettingsUpdateProfile);
-
 </script>
