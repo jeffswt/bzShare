@@ -5,7 +5,7 @@ import tornado
 from . import const
 from . import utils
 
-class Error404Handler(tornado.web.RequestHandler):
+class ErrorHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'HEAD']
 
     @tornado.web.asynchronous

@@ -15,7 +15,7 @@ from . import const
 from . import db
 from . import utils
 
-from . import module_error404
+from . import module_error
 from . import module_files
 from . import module_home
 from . import module_index
@@ -50,7 +50,7 @@ def main():
             (r'^/settings/usergroups_edit/(.*)/?$', module_settings.UsergroupEditHandler),
             (r'^/settings/dynamic-interface/?$', module_settings.DynamicInterfaceHandler),
             (r'^/settings/dynamic-interface_edit/(.*)/?$', module_settings.DynamicInterfaceHandler),
-            (r'.*', module_error404.Error404Handler)
+            (r'.*', module_error.ErrorHandler)
         ],
         xsrf_cookies=False, # True to prevent CSRF third party attacks
         compress_response=True # True to support GZIP encoding when transferring data
