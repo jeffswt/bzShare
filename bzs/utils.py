@@ -1,6 +1,7 @@
 
 import base64
 import binascii
+import gzip
 import mako
 import mako.template
 import math
@@ -43,6 +44,9 @@ def get_static_data(filename):
 
 def get_static_data_utf(filename):
     return get_static_data(filename).decode('utf-8', 'ignore')
+
+def gzip_compress(file_data):
+    return gzip.compress(file_data, compresslevel=9)
 
 def format_file_size(size_b, use_binary=False, verbose=False):
     if not use_binary:
