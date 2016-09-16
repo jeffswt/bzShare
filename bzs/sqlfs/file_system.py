@@ -37,9 +37,12 @@ class Filesystem:
         owner         = 'kernel'
         permissions   = {
             '': dict(
-                read  = False,
-                write = False,
-                inherit = False
+                read         = False, # Read permissions
+                write        = False, # Write permissions
+                inherit      = False, # Properties affect children
+                read_pass    = False, # Pass read properties to children upon creation
+                write_pass   = False, # Pass write properties to children upon creation
+                inherit_pass = False  # Pass inheritance properties to children upon creation
             )
         }
         uuid          = uuid_package.UUID('00000000-0000-0000-0000-000000000000')
@@ -48,7 +51,7 @@ class Filesystem:
         sub_items     = set()
         sub_names_idx = dict()
 
-        def __init__(self, is_dir=True, file_name='Untitled', owner='kernel', permissions={'':'--x'}, uuid=None, upload_time=None, sub_folders=set(), sub_files=set(), f_uuid=None, master=None):
+        def __init__(self, is_dir=True, file_name='Untitled', owner='kernel', permissions={'':'------'}, uuid=None, upload_time=None, sub_folders=set(), sub_files=set(), f_uuid=None, master=None):
             """ Load tree of all nodes in SQLFS filesystem. """
             # The filesystem / master of the node
             self.master = master
@@ -77,8 +80,8 @@ class Filesystem:
             return
 
         def duplicate(self):
-            """ Create duplicate (mutation-invulnerable) of this node with
-            a different UUID. """
+            """ Create duplicate (mutation-invulnerable) of this node with a
+            different UUID. """
             n_fl = self.master.fsNode(is_dir=self.is_dir, file_name=self.file_name, owner=self.owner, master=self.master)
             n_fl.permissions = copy.copy(self.permissions)
             # n_fl.uuid = None # Disabled due to new UUID necessity
@@ -98,12 +101,12 @@ class Filesystem:
 
         def chmod(self, usr, perm):
             """ Changes the permission of a single user. """
-            if len(perm) != 3:
+            if len(perm) != 6:
                 return False # Does not comply with the basics
-            standard = 'rwx'
-            indices = ['read', 'write', 'inherit']
+            standard = 'rwxrwx'
+            indices = ['read', 'write', 'inherit', 'read_pass', 'write_pass', 'inherit_pass']
             n_dict = dict()
-            for i in range(0, 3):
+            for i in range(0, 6):
                 n_dict[indices[i]] = (perm[i] == standard[i])
             self.permissions[usr] = n_dict
             return True
@@ -120,10 +123,13 @@ class Filesystem:
             """ Return formatted permissions of the file. """
             fmt_res = dict()
             for usr in self.permissions:
-                fmt_res[usr] = '%s%s%s' % (
+                fmt_res[usr] = '%s%s%s%s%s%s' % (
                     'r' if self.permissions[usr]['read'] else '-',
                     'w' if self.permissions[usr]['write'] else '-',
-                    'x' if self.permissions[usr]['inherit'] else '-'
+                    'x' if self.permissions[usr]['inherit'] else '-',
+                    'r' if self.permissions[usr]['read_pass'] else '-',
+                    'w' if self.permissions[usr]['write_pass'] else '-',
+                    'x' if self.permissions[usr]['inherit_pass'] else '-'
                 )
             return fmt_res
 
@@ -141,11 +147,19 @@ class Filesystem:
                 return False
             if usr not in self.parent.permissions:
                 return False
-            if not self.parent.permissions[usr]['inherit']:
-                return True
-            self.permissions[usr] = dict()
-            for s in {'read', 'write', 'inherit'}:
-                self.permissions[usr][s] = self.parent.permissions[usr][s]
+            if self.parent.permissions[usr]['inherit']:
+                self.permissions[usr] = dict()
+                for s in {'read', 'write', 'inherit'}:
+                    self.permissions[usr][s] = self.parent.permissions[usr]['%s_pass' % s]
+                # Deliver 'pass' properties
+                if self.parent.permissions[usr]['inherit_pass']:
+                    for s in {'read', 'write', 'inherit'}:
+                        self.permissions[usr]['%s_pass' % s] = self.parent.permissions[usr]['%s_pass' % s]
+                else:
+                    for s in {'read', 'write', 'inherit'}:
+                        self.permissions[usr]['%s_pass' % s] = self.parent.permissions[usr][s]
+                pass
+            print(self.permissions)
             return True
 
         def inherit_parmod_all(self):
@@ -327,12 +341,12 @@ class Filesystem:
     def __make_root(self):
         """ Create root that didn't exist before. """
         # Creating items
-        itm_root = self.fsNode(is_dir=True, file_name='', owner='kernel', permissions={'':'r-x'}, master=self)
-        itm_system = self.fsNode(is_dir=True, file_name='System', owner='kernel', permissions={'':'--x'}, master=self)
-        itm_public = self.fsNode(is_dir=True, file_name='Public', owner='public', permissions={'':'rwx'}, master=self)
-        itm_groups = self.fsNode(is_dir=True, file_name='Groups', owner='kernel', permissions={'':'r-x'}, master=self)
-        itm_users = self.fsNode(is_dir=True, file_name='Users', owner='kernel', permissions={'':'r-x'}, master=self)
-        itm_kernel_folder = self.fsNode(is_dir=True, file_name='kernel', owner='kernel', permissions={'':'--x'}, master=self)
+        itm_root = self.fsNode(is_dir=True, file_name='', owner='kernel', permissions={'':'r-xr-x'}, master=self)
+        itm_system = self.fsNode(is_dir=True, file_name='System', owner='kernel', permissions={'':'--x--x'}, master=self)
+        itm_public = self.fsNode(is_dir=True, file_name='Public', owner='public', permissions={'':'rwxr-x'}, master=self)
+        itm_groups = self.fsNode(is_dir=True, file_name='Groups', owner='kernel', permissions={'':'r-x--x'}, master=self)
+        itm_users = self.fsNode(is_dir=True, file_name='Users', owner='kernel', permissions={'':'r-x--x'}, master=self)
+        itm_kernel_folder = self.fsNode(is_dir=True, file_name='kernel', owner='kernel', permissions={'':'--x--x','kernel':'rwxrwx'}, master=self)
         # Removing extra data and linking
         large_set = {itm_system, itm_public, itm_groups, itm_users}
         # Inserting into SQL database
@@ -458,7 +472,7 @@ class Filesystem:
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Finished assertion.
         n_uuid = self.fs_store.new_unique_file(content_stream)
-        n_fl = self.fsNode(is_dir=False, file_name=file_name, owner=owner, permissions={'':'---',owner:'rw-'}, f_uuid=n_uuid, master=self)
+        n_fl = self.fsNode(is_dir=False, file_name=file_name, owner=owner, permissions={'':'--x--x',owner:'rwxrwx'}, f_uuid=n_uuid, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
         n_fl.inherit_parmod_all()
@@ -478,7 +492,7 @@ class Filesystem:
         file_name = self.__make_nice_filename(file_name)
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Creating new node.
-        n_fl = self.fsNode(is_dir=True, file_name=file_name, owner=owner, permissions={'':'---',owner:'rw-'}, master=self)
+        n_fl = self.fsNode(is_dir=True, file_name=file_name, owner=owner, permissions={'':'--x--x',owner:'rwxrwx'}, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
         n_fl.inherit_parmod_all()
