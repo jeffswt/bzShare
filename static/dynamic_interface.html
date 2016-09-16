@@ -1,0 +1,55 @@
+
+<!-- Content Header (Page header) -->
+<section class="content-header">
+    <h1>
+        Dynamic Interface
+        <small>Change pages on the fly</small>
+    </h1>
+    <ol class="breadcrumb">
+        <li><a href="#" data-href="/home">Home</a></li>
+        <li class="active">Settings</li>
+        <li class="active">Dynamic Interface</li>
+    </ol>
+</section>
+
+<!-- Main content -->
+<section class="content">
+    <div class="row">
+        <div class="col-xs-12">
+            <div class="box box-primary">
+                <div class="box-header">
+                    <h4 class="box-title pull-left">
+                        /home/
+                    </h4>
+                </div>
+                <div class="box-body">
+                    <textarea class="form-control" id="inputHomeData" name="HomeData" style="font-family: Consolas; height: 600px; resize: none;" placeholder="HTML content for /home/">${home_data}</textarea>
+                </div>
+                <div class="box-footer">
+                    <button class="btn btn-primary pull-right" id="buttonHomeData">Commit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<!-- /.content -->
+
+<script>
+$('#buttonHomeData').click(function() {
+    upl_data = $('#inputHomeData').val();
+    bzsDialogLoadingLoad();
+    var completeCallback = function() {
+        bzsDialogLoadingUnload();
+        bzsReloadMainframeRefresh();
+        bzsReloadMainIndex();
+        return ;
+    }
+    var xml_request = new XMLHttpRequest();
+    xml_request.addEventListener("load", completeCallback, false);
+    xml_request.addEventListener("error", completeCallback, false);
+    xml_request.addEventListener("abort", completeCallback, false);
+    xml_request.open("POST", "/settings/dynamic-interface_edit/home-data");
+    xml_request.send(upl_data);
+});
+console.log()
+</script>

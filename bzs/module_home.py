@@ -1,8 +1,10 @@
 
+import pickle
 import re
 import tornado
 
 from . import const
+from . import db
 from . import users
 from . import utils
 
@@ -16,7 +18,12 @@ class HomeHandler(tornado.web.RequestHandler):
         try:
             future = tornado.concurrent.Future()
             def get_index_html_async():
-                file_data = utils.get_static_data('./static/home.html')
+                try:
+                    file_data = pickle.loads(db.Database.execute('SELECT data FROM core WHERE index = %s;', ('dynamic_interface_home',))[0][0])
+                except Exception as err:
+                    file_data = utils.get_static_data('./static/home.html')
+                if type(file_data) == bytes:
+                    file_data = file_data.decode('utf-8', 'ignore')
                 working_user = users.get_user_by_cookie(
                     self.get_cookie('user_active_login', default=''))
                 file_data = utils.preprocess_webpage(file_data, working_user)

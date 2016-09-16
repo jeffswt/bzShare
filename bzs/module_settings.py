@@ -1,8 +1,10 @@
 
 import json
+import pickle
 import tornado
 
 from . import const
+from . import db
 from . import users
 from . import utils
 
@@ -389,4 +391,81 @@ class UsergroupEditHandler(tornado.web.RequestHandler):
         self.flush()
         self.finish()
         return
+    pass
+
+class DynamicInterfaceHandler(tornado.web.RequestHandler):
+    SUPPORTED_METHODS = ['GET', 'POST']
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
+    def get(self):
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
+
+        future = tornado.concurrent.Future()
+        def get_data_async(working_user):
+            if working_user.handle != 'kernel':
+                raise tornado.web.HTTPError(403)
+            file_data = utils.get_static_data('./static/dynamic_interface.html')
+            try:
+                home_data = pickle.loads(db.Database.execute("SELECT data FROM core WHERE index = %s;", ('dynamic_interface_home',))[0][0])
+            except:
+                home_data = utils.get_static_data('./static/home.html')
+            if type(home_data) == bytes:
+                home_data = home_data.decode('utf-8', 'ignore')
+            file_data = utils.preprocess_webpage(file_data, working_user,
+                home_data=home_data,
+                xsrf_form_html=self.xsrf_form_html()
+            )
+            future.set_result(file_data)
+        tornado.ioloop.IOLoop.instance().add_callback(
+            get_data_async, working_user)
+        file_data = yield future
+
+        # File actually exists, sending data
+        self.set_status(200, "OK")
+        self.add_header('Cache-Control', 'max-age=0')
+        self.add_header('Connection', 'close')
+        self.set_header('Content-Type', 'text/html; charset=UTF-8')
+        self.add_header('Content-Length', str(len(file_data)))
+
+        # Push result to client in one blob
+        self.write(file_data)
+        self.flush()
+        self.finish()
+        return
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
+    def post(self, target):
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
+
+        future = tornado.concurrent.Future()
+        def set_data_async(working_user, target):
+            if working_user.handle != 'kernel':
+                raise tornado.web.HTTPError(403)
+            upload_data = pickle.dumps(self.request.body)
+            if target == 'home-data':
+                print(self.request.body)
+            else:
+                raise tornado.web.HTTPError(403)
+            future.set_result('')
+        tornado.ioloop.IOLoop.instance().add_callback(
+            set_data_async, working_user, target)
+        file_data = yield future
+
+        # File actually exists, sending data
+        self.set_status(200, "OK")
+        self.add_header('Cache-Control', 'max-age=0')
+        self.add_header('Connection', 'close')
+        self.set_header('Content-Type', 'text/html; charset=UTF-8')
+        self.add_header('Content-Length', '0')
+
+        # Push result to client in one blob
+        self.write(file_data)
+        self.flush()
+        self.finish()
+        return
+
     pass

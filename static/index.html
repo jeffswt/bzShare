@@ -181,7 +181,7 @@
                     </ul>
                 </li>
 
-                % if user_is_standard_user:
+                % if user_is_administrator:
                 <li>
                     <a href="#" data-href="/forums">
                         <div class="ion ion-stats-bars"></div>
@@ -214,12 +214,6 @@
                             </a>
                         </li>
                         % if user_is_administrator:
-                        <li>
-                            <a href="#" data-href="/settings/account-management">
-                                <i class="fa fa-circle-o"></i>
-                                Account Management
-                            </a>
-                        </li>
                         <li>
                             <a href="#" data-href="/settings/dynamic-interface">
                                 <i class="fa fa-circle-o"></i>
