@@ -52,7 +52,8 @@ def main():
             (r'^/settings/dynamic-interface_edit/(.*)/?$', module_settings.DynamicInterfaceHandler),
             (r'.*', module_error404.Error404Handler)
         ],
-        xsrf_cookies=False # True to prevent CSRF third party attacks
+        xsrf_cookies=False, # True to prevent CSRF third party attacks
+        compress_response=True # True to support GZIP encoding when transferring data
     )
     # Starting server
     web_sockets = tornado.netutil.bind_sockets(

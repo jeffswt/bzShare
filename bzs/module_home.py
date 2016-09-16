@@ -33,18 +33,10 @@ class HomeHandler(tornado.web.RequestHandler):
         except Exception:
             raise tornado.web.HTTPError(404)
 
-        # Compress final data
-        future = tornado.concurrent.Future()
-        def compress_data_async(file_data):
-            future.set_result(utils.gzip_compress(file_data))
-        tornado.ioloop.IOLoop.instance().add_callback(compress_data_async, file_data)
-        file_data = yield future
-
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
         self.set_header('Content-Type', 'text/html; charset=UTF-8')
-        self.add_header('Content-Encoding', 'gzip')
         self.add_header('Content-Length', str(len(file_data)))
 
         # Push result to client in one blob
