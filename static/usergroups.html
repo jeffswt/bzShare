@@ -14,11 +14,14 @@
         <div class="col-xs-12">
             % if current_user.handle != 'guest':
             <div class="box box-success">
+                <a data-toggle="collapse" href="#table-general-information-collapse">
                 <div class="box-header">
                     <h4 class="box-title pull-left">
                         General Information
                     </h4>
                 </div>
+                </a>
+                <div id="table-general-information-collapse" class="panel-collapse collapse collapsed">
                 <div class="box-body">
                     <p>
                         In this section you would be able to perform a few actions related to usergroups.
@@ -38,13 +41,17 @@
                         from the group. No invitations would be possible.
                     </p>
                 </div>
+                </div>
             </div>
             <div class="box box-success">
+                <a data-toggle="collapse" href="#table-create-usergroup-collapse">
                 <div class="box-header">
                     <h4 class="box-title pull-left">
                         Create Usergroup
                     </h4>
                 </div>
+                </a>
+                <div id="table-create-usergroup-collapse" class="panel-collapse collapse">
                 <div class="box-body">
                     <form id="usergroup-create-form" class="form-horizontal">
                         ${xsrf_form_html}
@@ -63,13 +70,17 @@
                         <button type="submit" class="btn btn-success pull-right">Create</button>
                     </form>
                 </div>
+                </div>
             </div>
             <div class="box box-success">
+                <a data-toggle="collapse" href="#table-join-usergroup-collapse">
                 <div class="box-header">
                     <h4 class="box-title pull-left">
                         Join Usergroup
                     </h4>
                 </div>
+                </a>
+                <div id="table-join-usergroup-collapse" class="panel-collapse collapse collapsed">
                 <div class="box-body">
                     <form id="usergroup-join-form" class="form-horizontal">
                         ${xsrf_form_html}
@@ -82,52 +93,73 @@
                         <button type="submit" class="btn btn-success pull-right">Send Join Request</button>
                     </form>
                 </div>
+                </div>
             </div>
             % endif
             <div class="box box-primary">
+                <a data-toggle="collapse" href="#table-your-usergroups-collapse">
                 <div class="box-header">
                     <h4 class="box-title pull-left">
                         Your usergroups
                     </h4>
                 </div>
+                </a>
+                <div id="table-your-usergroups-collapse" class="panel-collapse collapse collapsed">
                 <div class="box-body">
                     <p>
                         Below are the usergroups that you are a member of. If you are an administrator
                         then you are granted the rights to accept join requests and kick users. Otherwise
                         you may only view the users, not edit them.
                     </p>
-                 </div>
+                </div>
+                </div>
             </div>
             % for itert_group in sorted(current_user_groups):
             <div class="box box-primary">
+                <a data-toggle="collapse" href="#table-usergroups-${itert_group.handle}-collapse">
                 <div class="box-header">
                     <h4 class="box-title pull-left">
                         ${itert_group.name} / <span style="color: #aaaaaa; font-size: 14px;">${itert_group.handle}</span>
                     </h4>
                 </div>
+                </a>
+                <div id="table-usergroups-${itert_group.handle}-collapse" class="panel-collapse collapse collapsed">
                 <div class="box-body">
-                    <table id="table-usergroups" class="table table-bordered table-striped">
+                    <table id="table-usergroups" name="table-usergroups" class="table table-bordered table-striped">
                         <thead><tr>
                             <th>User</td>
-                            <th>Operations</td>
+                            <th width="160px">Operations</td>
                         </tr></thead>
                         <tbody>
                             % for itert_user in itert_group.members:
                             <tr>
-                                <td>${itert_user.usr_name}</td>
                                 <td>
+                                    <span class="pull-left">
+                                        <img src="/user_avatar/${itert_user.handle}" class="user-image img-circle" style="height: 47px; width: 47px;">
+                                    </span>
+                                    <strong style="padding-left: 10px;">${itert_user.usr_name}</strong><br>
+                                    <a href="#" data-href="/settings/profile/${itert_user.handle}"><i style="color: #aaaaaa; font-size: 14px; padding-left: 10px">${itert_user.handle}</i></a>
+                                </td>
+                                <td style="padding-top: 15px;">
                                     % if itert_user.handle != itert_group.admin:
                                     <button class="btn btn-danger" ${'disabled="disabled"' if current_user.handle not in itert_group.allowed_edit else ''} target="#" onclick="javascript:bzsSettingsPerformAction('/settings/usergroups_edit/kick+${itert_group.handle}+${itert_user.handle}');">Kick User</button>
                                     % else:
-                                    <button class="btn btn-warning">Group Administrator</button>
+                                    <button class="btn btn-warning">Administrator</button>
                                     % endif
                                 </td>
                             </tr>
                             % endfor
                             % for itert_user in itert_group.joining:
                             <tr>
-                                <td>${itert_user.usr_name} <i><b>Would like to join this group.</b></i></td>
                                 <td>
+                                    <span class="pull-left">
+                                        <img src="/user_avatar/${itert_user.handle}" class="user-image img-circle" style="height: 47px; width: 47px;">
+                                    </span>
+                                    <strong style="padding-left: 10px;">${itert_user.usr_name}</strong>
+                                    <span style="color: #1164df;">Would like to join this group.</span><br>
+                                    <a href="#" data-href="/settings/profile/${itert_user.handle}"><i style="color: #aaaaaa; font-size: 14px; padding-left: 10px">${itert_user.handle}</i></a>
+                                </td>
+                                <td style="padding-top: 15px;">
                                     <div class="btn-group">
                                         <button class="btn btn-success" target="#" onclick="javascript:bzsSettingsPerformAction('/settings/usergroups_edit/accept+${itert_group.handle}+${itert_user.handle}');">Accept</button>
                                         <button class="btn btn-danger" target="#" onclick="javascript:bzsSettingsPerformAction('/settings/usergroups_edit/decline+${itert_group.handle}+${itert_user.handle}');">Decline</button>
@@ -157,6 +189,7 @@
                     </div>
                     % endif
                 </div>
+                </div>
             </div>
             % endfor
         </div>
@@ -166,15 +199,15 @@
 <!-- /.content -->
 
 <script>
-$('#table-usergroups').DataTable({
+$('[name="table-usergroups"]').DataTable({
     "paging": false,
     "lengthChange": false,
     "searching": true,
     "ordering": true,
     "info": true,
-    "autoWidth": true
+    "autoWidth": false
 });
-$('#table-usergroups_filter').attr('style', 'float:right');
+$('.dataTables_filter').attr('style', 'float:right');
 
 var bzsSettingsCreateUsergroup = function(event) {
     event.preventDefault();
