@@ -29,7 +29,10 @@ class User:
         # Specify data indefinitely or load from pickle pls.
         return
     def save_data(self):
+        tmp_master = self.master
+        del self.master
         bin_data = pickle.dumps(self)
+        self.master = tmp_master
         if not self.master.usr_db.execute("SELECT handle FROM users WHERE handle = %s;", (self.handle,)):
             self.master.usr_db.execute("INSERT INTO users (handle, data) VALUES (%s, %s);", (self.handle, bin_data))
         else:
@@ -112,7 +115,10 @@ class Usergroup:
             new.allowed_edit = {'kernel', self.admin}
         return new
     def save_data(self):
+        tmp_master = self.master
+        del self.master
         bin_data = pickle.dumps(self)
+        self.master = tmp_master
         if not self.master.usr_db.execute("SELECT handle FROM usergroups WHERE handle = %s;", (self.handle,)):
             self.master.usr_db.execute("INSERT INTO usergroups (handle, data) VALUES (%s, %s);", (self.handle, bin_data))
         else:
@@ -133,6 +139,7 @@ class UserManagerType:
         for item in self.usr_db.execute("SELECT handle, data FROM users;"):
             handle, bin_data = item
             n_usr = pickle.loads(bin_data)
+            n_usr.master = self
             # Injecting into index
             self.add_user(n_usr, raw_insert=True)
         # In case someone is missing... :)
@@ -157,6 +164,7 @@ class UserManagerType:
         for item in self.usr_db.execute("SELECT handle, data FROM usergroups;"):
             handle, bin_data = item
             n_grp = pickle.loads(bin_data)
+            n_grp.master = self
             # Injecting into index
             self.add_usergroup(n_grp)
         # Adding public usergroup, in case it's not available
