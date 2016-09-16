@@ -147,19 +147,14 @@ class Filesystem:
                 return False
             if usr not in self.parent.permissions:
                 return False
-            if self.parent.permissions[usr]['inherit']:
-                self.permissions[usr] = dict()
+            self.permissions[usr] = dict()
+            if self.parent.permissions[usr]['inherit_pass']:
                 for s in {'read', 'write', 'inherit'}:
                     self.permissions[usr][s] = self.parent.permissions[usr]['%s_pass' % s]
-                # Deliver 'pass' properties
-                if self.parent.permissions[usr]['inherit_pass']:
-                    for s in {'read', 'write', 'inherit'}:
-                        self.permissions[usr]['%s_pass' % s] = self.parent.permissions[usr]['%s_pass' % s]
-                else:
-                    for s in {'read', 'write', 'inherit'}:
-                        self.permissions[usr]['%s_pass' % s] = self.parent.permissions[usr][s]
-                pass
-            print(self.permissions)
+                    self.permissions[usr]['%s_pass' % s] = self.parent.permissions[usr]['%s_pass' % s]
+            else:
+                for s in {'read', 'write', 'inherit', 'read_pass', 'write_pass', 'inherit_pass'}:
+                    self.permissions[usr][s] = self.parent.permissions[usr][s]
             return True
 
         def inherit_parmod_all(self):
@@ -615,11 +610,11 @@ class Filesystem:
         # Create an environment-friendly file name
         file_name = self.__make_nice_filename(source.file_name)
         file_name = self.__resolve_conflict(file_name, target_parent)
-        source.file_name = file_name
         # Moving an re-assigning tree structures
         par = source.parent
         par.sub_items.remove(source)
         del par.sub_names_idx[source.file_name]
+        source.file_name = file_name
         source.parent = target_parent
         target_parent.sub_items.add(source)
         target_parent.sub_names_idx[source.file_name] = source
@@ -815,6 +810,10 @@ class Filesystem:
         """ Determines whether node is a child of parent. """
         ret_result = self.__is_child(node, parent)
         return ret_result
+
+    def update_in_db(self, node):
+        """ Update a node status in the filesystem. """
+        return self.__update_in_db(node)
 
     def create_file(self, path_parent, file_name, owner, content_stream):
         """ Inject object into filesystem, while passing in content. The content

@@ -85,10 +85,10 @@ def move(source, target_parent, user=None):
         return False
     if user and not FilesystemPermissions.writable(target_parent, user):
         return False
-    ret_result = Filesystem.move(source, target_parent)
+    ret_result = Filesystem.move_with_handle(source, target_parent)
     if user:
         FilesystemPermissions.copy_reown(ret_result, user)
-    return ret_result
+    return True if ret_result != None else False
 
 def remove(path, user=None):
     """Removes (recursively) all content of the folder / file itself and

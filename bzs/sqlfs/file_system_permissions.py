@@ -31,7 +31,7 @@ class FilesystemPermissions:
         print(node.file_name, node.fmtmod(), '***')
         res = node.permissions[sel_usr][mode]
         if node.parent and check_parent:
-            sel_usr_2 = user.handle if user.handle in node.parent.permissions else ''
+            sel_usr_2 = users.select_member(node.parent.permissions, user.handle)
             if node.parent.permissions[sel_usr_2]['inherit']:
                 res = res and node.parent.permissions[sel_usr_2][mode]
             pass
@@ -113,14 +113,27 @@ class FilesystemPermissions:
             return False
         # A nice node, now attempting to search and remove
         def _cp_rown(item, user):
+            edited = False
             sub_items = copy.copy(item.sub_items) # Otherwise would raise KeyError() when modifying indexed self
             for i_sub in sub_items:
                 _cp_rown(i_sub, user)
             if not self.readable(item, user):
                 self.fs.remove(item)
-            item.owner = user.handle
-            item.permissions = item.parent.permissions if item.parent else item.permissions
-            item.chmod(user.handle, 'rwx')
+                edited = True
+            if item.owner != user.handle:
+                item.owner = user.handle
+                edited = True
+            # Reset permissions
+            orig_perms = item.permissions
+            item.permissions = dict()
+            item.inherit_parmod_all()
+            # Add permissions for this user
+            item.chmod(user.handle, 'rwxrwx')
+            if item.permissions != orig_perms:
+                edited = True
+            # Update in database
+            if edited:
+                self.fs.update_in_db(item)
             return
         _cp_rown(node, user)
         # Done re-assigning

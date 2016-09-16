@@ -381,7 +381,7 @@ class UserManagerType:
         # After creating group, assign folders for it.
         sqlfs.create_directory('/Groups/', grp_handle)
         sqlfs.change_ownership('/Groups/%s/' % grp_handle, grp_handle)
-        sqlfs.change_permissions('/Groups/%s/' % grp_handle, {'':'--x--x',grp_handle:'rwxr-x',n_grp.admin:'rwxrwx'})
+        sqlfs.change_permissions('/Groups/%s/' % grp_handle, {'':'--x--x',grp_handle:'rw-r-x',n_grp.admin:'rwxrwx'})
         return True
 
     def join_usergroup(self, grp_handle, joiner):
@@ -408,6 +408,10 @@ class UserManagerType:
                 continue
             if user in self.get_usergroup_by_name(h).members:
                 return h
+        if 'public' in handles:
+            return 'public'
+        if 'guest' in handles:
+            return 'guest'
         return ''
 
     def get_user_by_name(self, name):
