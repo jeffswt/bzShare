@@ -28,9 +28,9 @@
                     <div class="btn-group">
                         <button class="btn btn-primary" type="button" onclick="javascript:bzsFilesCheckmarkToggleAll()"><span class="ion ion-toggle-filled" style="font-size:20px"></span></button>
                         % if cwd_writable:
-                        <button class="btn btn-primary" type="button" onclick="javascript:$('#files-upload-uploader-hidden').click();"><span class="ion ion-arrow-up-a" style="font-size:20px"></span></button>
+                        <button class="btn btn-primary" type="button" onclick="javascript:$('#files-upload-uploader-hidden').click();"><span class="ion ion-upload" style="font-size:20px"></span></button>
                         % else:
-                        <button class="btn btn-primary" type="button" disabled="true"><span class="ion ion-arrow-up-a" style="font-size:20px;"></span></button>
+                        <button class="btn btn-primary" type="button" disabled="true"><span class="ion ion-upload" style="font-size:20px;"></span></button>
                         % endif
                         <span id="files-checkmark-dropdown" class="dropdown">
                             <button id="files-checkmark-more" class="btn btn-primary" type="button" data-toggle="dropdown" target="#files-checkmark-dropdown" href="#"><span class="ion ion-more" style="font-size:20px"></span></button>
