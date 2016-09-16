@@ -87,6 +87,7 @@ class UserActivityHandler(tornado.web.RequestHandler):
                 )
             except Exception as err:
                 err_data = str(err)
+                raise err
                 file_data = utils.get_static_data('./static/signup_failure.html')
                 file_data = utils.preprocess_webpage(file_data, working_user,
                     xsrf_form_html=self.xsrf_form_html(),

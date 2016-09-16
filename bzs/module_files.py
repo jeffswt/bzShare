@@ -74,10 +74,7 @@ class FilesListHandler(tornado.web.RequestHandler):
                     # Permissions
                     attrib['writable'] = f_handle['writable']
                     # Encoding owners
-                    attrib['owners'] = list()
-                    for ownr in f_handle['owners']:
-                        attrib['owners'].append(users.get_name_by_id(ownr))
-                    attrib['owners'] = ', '.join(attrib['owners'])
+                    attrib['owner'] = users.get_name_by_id(f_handle['owner'])
                     # Encoding MIME types
                     if f_handle['is-dir']:
                         attrib['mime-type'] = 'directory/folder'

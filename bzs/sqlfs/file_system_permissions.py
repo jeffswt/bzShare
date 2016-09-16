@@ -27,7 +27,8 @@ class FilesystemPermissions:
         if user.handle in {'kernel'}:
             return True
         # Otherwise normal users
-        sel_usr = user.handle if user.handle in node.permissions else ''
+        sel_usr = users.select_member(node.permissions, user.handle)
+        print(node.file_name, node.fmtmod(), '***')
         res = node.permissions[sel_usr][mode]
         if node.parent and check_parent:
             sel_usr_2 = user.handle if user.handle in node.parent.permissions else ''
@@ -112,11 +113,15 @@ class FilesystemPermissions:
             return False
         # A nice node, now attempting to search and remove
         def _cp_rown(item, user):
-            sub_items = copy.copy(item.sub_items) # Otherwise would raise KeyError()
+            sub_items = copy.copy(item.sub_items) # Otherwise would raise KeyError() when modifying indexed self
             for i_sub in sub_items:
                 _cp_rown(i_sub, user)
             if not self.readable(item, user):
                 self.fs.remove(item)
+            item.owner = user.handle
+            item.permissions = item.parent.permissions if item.parent else item.permissions
+            item.chmod(user.handle, 'rwx')
+            return
         _cp_rown(node, user)
         # Done re-assigning
         return True

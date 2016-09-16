@@ -9,7 +9,7 @@ from . import utils
 from . import sqlfs
 
 class User:
-    """A user that acts as a fundamental functional group in bzShare."""
+    """ A user that acts as a fundamental functional group in bzShare. """
     def __init__(self, handle=None, password=None, usergroups=None, usr_name=None, usr_description=None, master=None):
         self.master          = master # Parent
         # User handle, composed only of non-capital letters, numbers and underline,
@@ -48,7 +48,7 @@ class User:
     pass
 
 class Usergroup:
-    """A usergroup that contains people from userspace / kernel."""
+    """ A usergroup that contains people from userspace / kernel. """
     def __init__(self, handle=None, admin=None, name=None, master=None):
         self.master  = master
         self.handle  = handle
@@ -93,7 +93,7 @@ class Usergroup:
         return
     def export_dynamic_usergroup(self):
         """This returns a dynamic usergroup that has references to other objects
-        of the set()s without needing direct queries to the user unit."""
+        of the set()s without needing direct queries to the user unit. """
         class UsergroupDynamic:
             def __lt__(self, value):
                 return self.handle < value.handle
@@ -122,7 +122,7 @@ class Usergroup:
 
 class UserManagerType:
     def __init__(self, database=None):
-        """Loads user content and configurations from database."""
+        """ Loads user content and configurations from database. """
         if not database:
             raise AttributeError('Must provide a database')
         self.users         = dict() # string -> User
@@ -330,8 +330,8 @@ class UserManagerType:
         usr.save_data()
         # After creating account, assign folders for him.
         sqlfs.create_directory('/Users/', usr_handle)
-        sqlfs.change_ownership('/Users/%s/' % usr_handle, {usr_handle})
-        sqlfs.change_permissions('/Users/%s/' % usr_handle, 'rwx--x')
+        sqlfs.change_ownership('/Users/%s/' % usr_handle, usr_handle)
+        sqlfs.change_permissions('/Users/%s/' % usr_handle, {'':'--x',usr_handle:'rwx'})
         return True
 
     def create_usergroup_check_handle(self, grp_handle):
@@ -380,8 +380,8 @@ class UserManagerType:
         creator.save_data()
         # After creating group, assign folders for it.
         sqlfs.create_directory('/Groups/', grp_handle)
-        sqlfs.change_ownership('/Groups/%s/' % grp_handle, {grp_handle})
-        sqlfs.change_permissions('/Groups/%s/' % grp_handle, 'rwx--x')
+        sqlfs.change_ownership('/Groups/%s/' % grp_handle, grp_handle)
+        sqlfs.change_permissions('/Groups/%s/' % grp_handle, {'':'--x',grp_handle:'r-x',n_grp.admin:'rwx'})
         return True
 
     def join_usergroup(self, grp_handle, joiner):
@@ -397,20 +397,18 @@ class UserManagerType:
         joiner.save_data()
         return
 
-    def is_owner(self, user, owners):
-        """Check if user is one of the owners."""
-        if type(user) == str:
-            user = self.get_user_by_name(user)
-        for grp in user.usergroups:
-            if grp in owners:
-                return True
-        if 'guest' in owners:
-            return True
-        if 'public' in owners:
-            return True
-        if user.handle == 'kernel':
-            return True
-        return user.handle in owners
+    def select_member(self, handles, user):
+        """ Select the most appropriate handle in handles that match handle's
+        ownership or permissions. """
+        for h in handles:
+            if user == h:
+                return h
+        for h in handles:
+            if h not in self.usergroups:
+                continue
+            if user in self.get_usergroup_by_name(h).members:
+                return h
+        return ''
 
     def get_user_by_name(self, name):
         if name in self.users:
@@ -477,8 +475,8 @@ def create_usergroup(handle, name, creator):
 def join_usergroup(handle, joiner):
     return UserManager.join_usergroup(handle, joiner)
 
-def is_owner(user, owners):
-    return UserManager.is_owner(user, owners)
+def select_member(handles, user):
+    return UserManager.select_member(handles, user)
 
 def get_user_by_name(name):
     return UserManager.get_user_by_name(name)

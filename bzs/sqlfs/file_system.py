@@ -56,7 +56,7 @@ class Filesystem:
             self.is_dir = is_dir
             self.file_name = file_name
             self.owner = owner
-            self.chmod_all(permissions)
+            self.permissions = self.chmod_all(permissions)
             # Generate Universally Unique Identifier
             self.uuid = master.utils_pkg.get_new_uuid(uuid, master.fs_uuid_idx)
             master.fs_uuid_idx[self.uuid] = self
@@ -100,20 +100,21 @@ class Filesystem:
             """ Changes the permission of a single user. """
             if len(perm) != 3:
                 return False # Does not comply with the basics
-            self.permissions = dict()
             standard = 'rwx'
             indices = ['read', 'write', 'inherit']
-            self.permissions[usr] = dict()
+            n_dict = dict()
             for i in range(0, 3):
-                self.permissions[usr][indices[i]] = (perm[i] == standard[i])
+                n_dict[indices[i]] = (perm[i] == standard[i])
+            self.permissions[usr] = n_dict
             return True
 
         def chmod_all(self, perms):
             """ Change all permissions using a dict() of the file. """
+            self.permissions = dict()
             for usr in perms:
                 if not self.chmod(usr, perms[usr]):
-                    return False
-            return True
+                    return None
+            return self.permissions
 
         def fmtmod(self):
             """ Return formatted permissions of the file. """
@@ -143,7 +144,7 @@ class Filesystem:
             if not self.parent.permissions[usr]['inherit']:
                 return True
             self.permissions[usr] = dict()
-            for s in ['read', 'write', 'inherit']:
+            for s in {'read', 'write', 'inherit'}:
                 self.permissions[usr][s] = self.parent.permissions[usr][s]
             return True
 
@@ -457,7 +458,7 @@ class Filesystem:
         file_name = self.__resolve_conflict(file_name, path_parent)
         # Finished assertion.
         n_uuid = self.fs_store.new_unique_file(content_stream)
-        n_fl = self.fsNode(is_dir=False, file_name=file_name, owner=owner, permissions={'':'---','kernel':'rw-',owner:'rw-'}, f_uuid=n_uuid, master=self)
+        n_fl = self.fsNode(is_dir=False, file_name=file_name, owner=owner, permissions={'':'---',owner:'rw-'}, f_uuid=n_uuid, master=self)
         # Updating tree connexions
         n_fl.parent = path_parent
         n_fl.inherit_parmod_all()
@@ -690,7 +691,7 @@ class Filesystem:
         if not item:
             return False
         # Parse permission information
-        ret = item.chmod(perm)
+        ret = item.chmod_all(perm)
         if not item.is_dir:
             self.__update_in_db(item.parent)
         else:

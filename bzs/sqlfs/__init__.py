@@ -67,7 +67,7 @@ def copy(source, target_parent, user=None):
         return False
     if user and not FilesystemPermissions.writable(target_parent, user):
         return False
-    ret_result = Filesystem.copy_with_handle(source, target_parent, new_owners=None)
+    ret_result = Filesystem.copy_with_handle(source, target_parent, new_owner=None)
     if user:
         FilesystemPermissions.copy_reown(ret_result, user)
     return True if ret_result != None else False
@@ -86,6 +86,8 @@ def move(source, target_parent, user=None):
     if user and not FilesystemPermissions.writable(target_parent, user):
         return False
     ret_result = Filesystem.move(source, target_parent)
+    if user:
+        FilesystemPermissions.copy_reown(ret_result, user)
     return ret_result
 
 def remove(path, user=None):
@@ -109,14 +111,14 @@ def rename(path, file_name, user=None):
     ret_result = Filesystem.rename(path, file_name)
     return ret_result
 
-def change_ownership(path, owners, user=None):
-    """Assign owners of 'path' to new owners, recursively. Must have both read
+def change_ownership(path, owner, user=None):
+    """Assign owner of 'path' to new owner, recursively. Must have both read
     and write access to itself and all subfiles."""
     if user and not FilesystemPermissions.read_writable_all(path, user):
         return False
     if user and not FilesystemPermissions.writable_self(path, user):
         return False
-    ret_result = Filesystem.change_ownership(path, owners)
+    ret_result = Filesystem.change_ownership(path, owner)
     return ret_result
 
 def change_permissions(path, permissions, recursive=False, user=None):
@@ -124,10 +126,9 @@ def change_permissions(path, permissions, recursive=False, user=None):
     to determine whether this is done recursively. The available modes and
     representations are:
 
-        perm = '  r    w    x    |    r    w     x  '
-                     Owners |        Non-owners  |
-               Read  Write  |       Read Write   |
-         Effect sub_files <-+ Effect sub_files <-+
+        perm = '  r    w    x  '
+               Read  Write  Effect sub_files
+        For each user there is an individual 'perm' string / dict().
 
     In 'read' mode, sub_files would not be seen if denied access at a parent
         directory.
@@ -154,7 +155,7 @@ def list_directory(path, user=None):
         file-name   - File name
         file-size   - File size
         is-dir      - Whether is directory
-        owners      - The handles of the owners
+        owner       - The handle of the owner
         upload-time - Time uploaded, in float since epoch.
         writable    - Whether the user has write access to this object.
 
