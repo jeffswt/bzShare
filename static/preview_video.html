@@ -11,12 +11,14 @@
 <script src="/static/videojs/ie8/videojs-ie8.min.js"></script>
 <script src="/static/videojs/video.min.js"></script>
 
-<video id="bzs-video-preview" class="video-js vjs-default-skin fill-content-area" controls preload="auto" poster="" data-setup="{}">
-    <source src="/files/download/${file_hash}/${file_name_url}" type="${file_mime}">
-    <p class="vjs-no-js">
-        To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-    </p>
-</video>
+<div id="bzs-video-preview-frame" class="fill-content-area">
+    <video id="bzs-video-preview" class="video-js vjs-default-skin" style="height: 100%; width: 100%;" controls preload="auto" poster="" data-setup="{}">
+        <source src="/files/download/${file_hash}/${file_name_url}" type="${file_mime}">
+        <p class="vjs-no-js">
+            To view this video please enable JavaScript, and consider upgrading to a web browser that <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+        </p>
+    </video>
+</frame>
 
 <script>
 $('.vjs-fullscreen-control.vjs-control.vjs-button').remove()
