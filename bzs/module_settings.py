@@ -75,7 +75,7 @@ class ProfileEditHandler(tornado.web.RequestHandler):
                     usr_name = req_data['username']
                     usr_desc = req_data['description']
                     # Done getting data, checking validity
-                    users.UserManager.create_user_check_password(usr_password, usr_password_recheck)
+                    users.UserManager.create_user_check_password(usr_password, usr_password_recheck, this_user.handle)
                     users.UserManager.create_user_check_username(usr_name)
                     users.UserManager.create_user_check_description(usr_desc)
                     # Done validing, now modifying user

@@ -283,13 +283,14 @@ class UserManagerType:
             raise Exception('This user handle had already been used. Consider using another one.')
         return usr_handle
 
-    def create_user_check_password(self, usr_password, usr_password_recheck):
+    def create_user_check_password(self, usr_password, usr_password_recheck, usr_handle):
         if not utils.is_safe_string(usr_password, 'letters', 'numbers', 'symbols'):
             raise Exception('Password must be composed of keys that can be retrieved directly from a QWERTY keyboard.')
-        if len(usr_password) > 64 or len(usr_password) < 6:
-            raise Exception('Password does not meet required length (6 letters to 64 letters)')
         if usr_password != usr_password_recheck:
             raise Exception('The two passwords you have typed in does not match.')
+        if usr_handle != 'guest':
+            if len(usr_password) > 64 or len(usr_password) < 6:
+                raise Exception('Password does not meet required length (6 letters to 64 letters)')
         return usr_password
 
     def create_user_check_username(self, usr_name):
@@ -326,7 +327,7 @@ class UserManagerType:
         # Checking handle validity
         self.create_user_check_handle(usr_handle)
         # Checking password validity
-        self.create_user_check_password(usr_password, usr_password_recheck)
+        self.create_user_check_password(usr_password, usr_password_recheck, usr_handle)
         # Checking user name validity
         self.create_user_check_username(usr_name)
         # Checking description validity.
