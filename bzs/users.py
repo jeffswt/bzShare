@@ -215,8 +215,7 @@ class UserManagerType:
                 self.remove_usergroup(rm_grp)
             else:
                 rm_grp.remove_member(usr.handle)
-            if rm_grp.handle == 'public':
-                continue
+                rm_grp.save_data()
             pass
         # Expunge user's personal data
         sqlfs.remove('/Users/%s/' % usr.handle)
