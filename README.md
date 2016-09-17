@@ -34,7 +34,7 @@ All screenshots were taken on a Google Chrome.
 
 # Todo List
 
-  - [ ] Use an asynchronous model for filesystem management, returning progress to the web client whenever called. Progress bars should be implemented in the user interface.
+  - [x] Use an asynchronous model for filesystem management, returning progress to the web client whenever called. Progress bars should be implemented in the user interface.
   - [x] Use GZip encoding while transporting data for the sake of reducing network latency.
 
 # Special Thanks
