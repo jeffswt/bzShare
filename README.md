@@ -18,24 +18,23 @@ access your OI materials anywhere, anytime.
 
 Works great on **all devices!**
 
-Computer, 1920x1080 FHD
+Computer, 1920x1080 FHD (Usergroups)
 
-![Computer, 1920x1080 FHD](./static/readme/bzshare-r0-18-screenshot-01.png)
+![Computer, 1920x1080 FHD](./static/readme/bzshare-screenshot-01.png)
 
-Tablet, iPad 2, 768x1024
+Tablet, iPad 2, 768x1024 (File manager)
 
-![Tablet, iPad 2, 768x1024](./static/readme/bzshare-r0-18-screenshot-02.png)
+![Tablet, iPad 2, 768x1024](./static/readme/bzshare-screenshot-02.png)
 
-Smartphone, iPhone 6S, 414x736
+Smartphone, iPhone 6S, 736x414 (Video Preview)
 
-![Smartphone, iPhone 6S, 414x736](./static/readme/bzshare-r0-18-screenshot-03.png)
+![Smartphone, iPhone 6S, 736x414](./static/readme/bzshare-screenshot-03.png)
+
+Small smartphone, iPhone 5, 320x568 (Profile)
+
+![Small smartphone, iPhone 5, 320x568](./static/readme/bzshare-screenshot-04.png)
 
 All screenshots were taken on a Google Chrome.
-
-# Todo List
-
-  - [x] Use an asynchronous model for filesystem management, returning progress to the web client whenever called. Progress bars should be implemented in the user interface.
-  - [x] Use GZip encoding while transporting data for the sake of reducing network latency.
 
 # Special Thanks
 
