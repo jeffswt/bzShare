@@ -22,50 +22,48 @@ class FilesListHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self, target_path):
         """/files/list/HEXED_BASE64_STRING_OF_PATH/"""
+        # Getting file template.
+        file_temp = utils.get_static_data('./static/files.html')
+        working_user = users.get_user_by_cookie(
+            self.get_cookie('user_active_login', default=''))
+
+        # Retrieving list operation target.
+        try:
+            target_path = utils.decode_hexed_b64_to_str(target_path)
+        except:
+            target_path = '/'
+        if not target_path:
+            target_path = '/'
+
+        # Getting hierarchical file path
+        files_hierarchy = target_path.split('/')
+        files_hierarchy_list = list()
+        while '' in files_hierarchy:
+            files_hierarchy.remove('')
+        files_hierarchy = [''] + files_hierarchy
+        files_hierarchy_cwd = ''
+        for i in range(0, len(files_hierarchy)):
+            files_hierarchy[i] += '/'
+            files_hierarchy_cwd += files_hierarchy[i]
+            files_hierarchy_list.append(dict(
+                folder_name=files_hierarchy[i],
+                href_path='/files/list/%s' % utils.encode_str_to_hexed_b64(files_hierarchy_cwd),
+                disabled=(i == len(files_hierarchy) - 1)))
+            continue
+
+        sessid = async_session.create_session(sqlfs.list_directory, target_path, user=working_user)
+        while not async_session.completed(sessid):
+            time.sleep(0.001)
+        ls_dir = async_session.get_result(sessid)
+        
         # Another concurrency blob...
         future = tornado.concurrent.Future()
 
-        def get_final_html_async(target_path):
-            # Getting file template.
-            file_temp = utils.get_static_data('./static/files.html')
-            working_user = users.get_user_by_cookie(
-                self.get_cookie('user_active_login', default=''))
-
-            # Retrieving list operation target.
-            try:
-                target_path = utils.decode_hexed_b64_to_str(target_path)
-            except:
-                target_path = '/'
-            if not target_path:
-                target_path = '/'
-
-            # Getting hierarchical file path
-            files_hierarchy = target_path.split('/')
-            files_hierarchy_list = list()
-            while '' in files_hierarchy:
-                files_hierarchy.remove('')
-            files_hierarchy = [''] + files_hierarchy
-            files_hierarchy_cwd = ''
-            for i in range(0, len(files_hierarchy)):
-                files_hierarchy[i] += '/'
-                files_hierarchy_cwd += files_hierarchy[i]
-                files_hierarchy_list.append(dict(
-                    folder_name=files_hierarchy[i],
-                    href_path='/files/list/%s' % utils.encode_str_to_hexed_b64(files_hierarchy_cwd),
-                    disabled=(i == len(files_hierarchy) - 1)))
-                continue
-
+        def get_final_html_async(target_path, file_temp, files_hierarchy, files_hierarchy_cwd, files_hierarchy_list, ls_dir):
             # Getting current directory permissions
             cwd_writable = sqlfs.writable(target_path, working_user)
 
-            # Getting current directory content
             files_attrib_list = list()
-            sessid = async_session.create_session(sqlfs.list_directory, target_path, user=working_user)
-            while not async_session.completed(sessid):
-                time.sleep(0.001)
-            ls_dir = async_session.get_result(sessid)
-
-            # for f_handle in sqlfs.list_directory(target_path, user=working_user):
             for f_handle in ls_dir:
                 try:
                     file_name = f_handle['file-name']
@@ -109,7 +107,7 @@ class FilesListHandler(tornado.web.RequestHandler):
                 xsrf_form_html=self.xsrf_form_html())
             future.set_result(file_temp)
         tornado.ioloop.IOLoop.instance().add_callback(get_final_html_async,
-            target_path)
+            target_path, file_temp, files_hierarchy, files_hierarchy_cwd, files_hierarchy_list, ls_dir)
         file_temp = yield future
 
         self.set_status(200, "OK")
@@ -218,67 +216,63 @@ class FilesOperationHandler(tornado.web.RequestHandler):
             self.get_cookie('user_active_login', default=''))
         future = tornado.concurrent.Future()
 
-        def get_final_html_async(working_user):
-            operation_content_raw = self.request.body
-            operation_content = json.loads(operation_content_raw.decode('utf-8', 'ignore'))
-            action = operation_content['action']
-            sources = operation_content['source']
-            if type(sources) == list:
-                for i in range(0, len(sources)):
-                    try:
-                        sources[i] = utils.decode_hexed_b64_to_str(sources[i])
-                    except:
-                        pass
-            else:
-                sources = utils.decode_hexed_b64_to_str(sources)
-            if action in ['copy', 'move']:
+        operation_content_raw = self.request.body
+        operation_content = json.loads(operation_content_raw.decode('utf-8', 'ignore'))
+        action = operation_content['action']
+        sources = operation_content['source']
+        if type(sources) == list:
+            for i in range(0, len(sources)):
                 try:
-                    target = utils.decode_hexed_b64_to_str(operation_content['target'])
+                    sources[i] = utils.decode_hexed_b64_to_str(sources[i])
                 except:
-                    target = '/'
-            elif action in ['rename', 'new-folder']:
-                try:
-                    target = operation_content['target']
-                except:
-                    target = sources # I am not handling more exceptions as this is brutal enough
-            # Done assigning values, now attempting to perform operation
-            if action == 'copy':
-                for source in sources:
-                    sessid = async_session.create_session(sqlfs.copy, source, target, user=working_user)
-                    while not async_session.completed(sessid):
-                        time.sleep(0.001)
-                    async_session.get_result(sessid)
-                    # sqlfs.copy(source, target, user=working_user)
-            elif action == 'move':
-                for source in sources:
-                    sessid = async_session.create_session(sqlfs.move, source, target, user=working_user)
-                    while not async_session.completed(sessid):
-                        time.sleep(0.001)
-                    async_session.get_result(sessid)
-                    # sqlfs.move(source, target, user=working_user)
-            elif action == 'delete':
-                for source in sources:
-                    sessid = async_session.create_session(sqlfs.remove, source, user=working_user)
-                    while not async_session.completed(sessid):
-                        time.sleep(0.001)
-                    async_session.get_result(sessid)
-                    # sqlfs.remove(source, user=working_user)
-            elif action == 'rename':
-                sessid = async_session.create_session(sqlfs.rename, sources, target, user=working_user)
+                    pass
+        else:
+            sources = utils.decode_hexed_b64_to_str(sources)
+        if action in ['copy', 'move']:
+            try:
+                target = utils.decode_hexed_b64_to_str(operation_content['target'])
+            except:
+                target = '/'
+        elif action in ['rename', 'new-folder']:
+            try:
+                target = operation_content['target']
+            except:
+                target = sources # I am not handling more exceptions as this is brutal enough
+        # Done assigning values, now attempting to perform operation
+        if action == 'copy':
+            for source in sources:
+                sessid = async_session.create_session(sqlfs.copy, source, target, user=working_user)
                 while not async_session.completed(sessid):
-                    time.sleep(0.001)
+                    yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
                 async_session.get_result(sessid)
-                # sqlfs.rename(sources, target, user=working_user)
-            elif action == 'new-folder':
-                sessid = async_session.create_session(sqlfs.create_directory, sources, target, user=working_user)
+                # sqlfs.copy(source, target, user=working_user)
+        elif action == 'move':
+            for source in sources:
+                sessid = async_session.create_session(sqlfs.move, source, target, user=working_user)
                 while not async_session.completed(sessid):
-                    time.sleep(0.001)
+                    yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
                 async_session.get_result(sessid)
-                # sqlfs.create_directory(sources, target, user=working_user)
-            future.set_result('')
-        tornado.ioloop.IOLoop.instance().add_callback(
-            get_final_html_async, working_user)
-        file_temp = yield future
+                # sqlfs.move(source, target, user=working_user)
+        elif action == 'delete':
+            for source in sources:
+                sessid = async_session.create_session(sqlfs.remove, source, user=working_user)
+                while not async_session.completed(sessid):
+                    yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
+                async_session.get_result(sessid)
+                # sqlfs.remove(source, user=working_user)
+        elif action == 'rename':
+            sessid = async_session.create_session(sqlfs.rename, sources, target, user=working_user)
+            while not async_session.completed(sessid):
+                yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
+            async_session.get_result(sessid)
+            # sqlfs.rename(sources, target, user=working_user)
+        elif action == 'new-folder':
+            sessid = async_session.create_session(sqlfs.create_directory, sources, target, user=working_user)
+            while not async_session.completed(sessid):
+                yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
+            async_session.get_result(sessid)
+
+        file_temp = ''
 
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
@@ -337,7 +331,7 @@ class FilesUploadHandler(tornado.web.RequestHandler):
         async_session.get_result(sessid)
 
         response_temp = 'bzs_upload_success'
-        
+
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
         self.add_header('Connection', 'close')
