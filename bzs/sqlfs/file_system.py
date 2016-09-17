@@ -849,7 +849,7 @@ class Filesystem:
 
     def move_with_handle(self, source, target_parent):
         """ Same as move(), returns HANDLE or None. """
-        ret_result = self.__copy(source, target_parent, return_handle=True)
+        ret_result = self.__move(source, target_parent, return_handle=True)
         return ret_result
 
     def remove(self, path):

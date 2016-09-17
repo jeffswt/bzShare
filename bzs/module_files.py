@@ -55,7 +55,7 @@ class FilesListHandler(tornado.web.RequestHandler):
         while not async_session.completed(sessid):
             time.sleep(0.001)
         ls_dir = async_session.get_result(sessid)
-        
+
         # Another concurrency blob...
         future = tornado.concurrent.Future()
 
@@ -245,27 +245,23 @@ class FilesOperationHandler(tornado.web.RequestHandler):
                 while not async_session.completed(sessid):
                     yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
                 async_session.get_result(sessid)
-                # sqlfs.copy(source, target, user=working_user)
         elif action == 'move':
             for source in sources:
                 sessid = async_session.create_session(sqlfs.move, source, target, user=working_user)
                 while not async_session.completed(sessid):
                     yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
                 async_session.get_result(sessid)
-                # sqlfs.move(source, target, user=working_user)
         elif action == 'delete':
             for source in sources:
                 sessid = async_session.create_session(sqlfs.remove, source, user=working_user)
                 while not async_session.completed(sessid):
                     yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
                 async_session.get_result(sessid)
-                # sqlfs.remove(source, user=working_user)
         elif action == 'rename':
             sessid = async_session.create_session(sqlfs.rename, sources, target, user=working_user)
             while not async_session.completed(sessid):
                 yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.001)
             async_session.get_result(sessid)
-            # sqlfs.rename(sources, target, user=working_user)
         elif action == 'new-folder':
             sessid = async_session.create_session(sqlfs.create_directory, sources, target, user=working_user)
             while not async_session.completed(sessid):
