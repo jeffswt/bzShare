@@ -31,10 +31,10 @@ def main():
     # Creating web application
     web_app = tornado.web.Application([
             (r'^/$', module_index.MainframeHandler),
-            (r'/static/(.*)$', module_static.StaticHandler),
-            # (r'/static/(.*)', tornado.web.StaticFileHandler, {
-            #     "path": "./static/" # Optimized static file handler with cache
-            # }),
+            # (r'/static/(.*)$', module_static.StaticHandler),
+            (r'/static/(.*)', tornado.web.StaticFileHandler, {
+                "path": "./static/" # Optimized static file handler with cache
+            }),
             (r'^/home/?', module_home.HomeHandler),
             (r'^/files/?()$', module_files.FilesListHandler),
             (r'^/files/list/(.*)/?', module_files.FilesListHandler),
@@ -49,8 +49,8 @@ def main():
             (r'^/settings/usergroups/?$', module_settings.UsergroupHandler),
             (r'^/settings/usergroups_edit/(.*)/?$', module_settings.UsergroupEditHandler),
             (r'^/settings/dynamic-interface/?$', module_settings.DynamicInterfaceHandler),
-            (r'^/settings/dynamic-interface_edit/(.*)/?$', module_settings.DynamicInterfaceHandler),
-            (r'.*', module_error.ErrorHandler)
+            (r'^/settings/dynamic-interface_edit/(.*)/?$', module_settings.DynamicInterfaceHandler)
+            # (r'.*', module_error.ErrorHandler)
         ],
         xsrf_cookies=False, # True to prevent CSRF third party attacks
         compress_response=True # True to support GZIP encoding when transferring data
