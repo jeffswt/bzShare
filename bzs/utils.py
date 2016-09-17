@@ -132,7 +132,7 @@ def get_safe_keys(*args):
         numbers_symbols = '!@#$%^&*()-=_+',
         symbols_alpha = '`[];\'\\,./',
         symbols_cap = '~{}:"|<>?',
-        symbols = '!@#$%^&*()-=_+`[];\'\\,./~{}:"|<>?',
+        symbols = '!@#$%^&*()-=_+`[];\'\\,./~{}:"|<>? ',
         html_escape = '<>&'
     )
     final = ''
