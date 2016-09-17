@@ -2,11 +2,13 @@
 import pickle
 import re
 import tornado
+import time
 
 from . import const
 from . import db
 from . import users
 from . import utils
+
 
 class HomeHandler(tornado.web.RequestHandler):
     SUPPORTED_METHODS = ['GET', 'HEAD']
@@ -32,6 +34,11 @@ class HomeHandler(tornado.web.RequestHandler):
             file_data = yield future
         except Exception:
             raise tornado.web.HTTPError(404)
+        print('before yield')
+        # for i in range(0, 100):
+        #     print(i)
+        #     yield tornado.gen.Task(tornado.ioloop.IOLoop.instance().add_timeout, time.time() + 0.01)
+        print('yielding?')
 
         self.set_status(200, "OK")
         self.add_header('Cache-Control', 'max-age=0')
