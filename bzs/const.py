@@ -32,7 +32,7 @@ universal_options_list = {
     'time-zone': 'Asia/Shanghai',
     'users-invite-code': os.environ.get('BZS_USERS_INVITE_CODE', '571428'),
     'users-max-groups-allowed': 3,
-    'version': 'r0.106'
+    'version': 'r0.109'
 }
 
 def get_const(_):
