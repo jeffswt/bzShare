@@ -26,6 +26,7 @@
     </div></div></p>
 </div>
 
+<script src="/static/plugins/jssha/sha512.js"></script>
 <script>
 $('#dialog-template-form').off('submit')
 $('#dialog-template-form').submit(function(event) {
@@ -34,6 +35,8 @@ $('#dialog-template-form').submit(function(event) {
     var form_source = $(this).serializeArray();
     for (var i = 0; i < form_source.length; i++)
         form_data[form_source[i]['name']] = form_source[i]['value']
+    // This is to ensure the security
+    form_data['password'] = hex_sha512(form_data['password']);
     $.ajax({
         method: 'POST',
         url: '/user/operation_login',

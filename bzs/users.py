@@ -16,7 +16,7 @@ class User:
         # While not exceeding the limit of 32-byte length
         self.handle          = handle or 'guest'
         # Password is defaultly set to blank.
-        self.password        = password or ''
+        self.password        = password or utils.sha512_hex('')
         # A group of usergroups that the user belongs to.
         self.usergroups      = usergroups or {'public'}
         # Cookies that are used to login.
@@ -154,7 +154,7 @@ class UserManagerType:
         if 'kernel' not in self.users:
             n_usr = User(
                 handle = 'kernel',
-                password = const.get_const('server-admin-password'),
+                password = utils.sha512_hex(const.get_const('server-admin-password')),
                 usergroups = {'public'},
                 usr_name = 'bzShare Kernel',
                 usr_description = 'The core manager of bzShare.',
@@ -283,16 +283,6 @@ class UserManagerType:
             raise Exception('This user handle had already been used. Consider using another one.')
         return usr_handle
 
-    def create_user_check_password(self, usr_password, usr_password_recheck, usr_handle):
-        if not utils.is_safe_string(usr_password, 'letters', 'numbers', 'symbols'):
-            raise Exception('Password must be composed of keys that can be retrieved directly from a QWERTY keyboard.')
-        if usr_password != usr_password_recheck:
-            raise Exception('The two passwords you have typed in does not match.')
-        if usr_handle != 'guest':
-            if len(usr_password) > 64 or len(usr_password) < 6:
-                raise Exception('Password does not meet required length (6 letters to 64 letters)')
-        return usr_password
-
     def create_user_check_username(self, usr_name):
         if utils.is_unsafe_string(usr_name, 'html_escape'):
             raise Exception('Your name should not contain HTML escape characters.')
@@ -314,20 +304,17 @@ class UserManagerType:
             usr_invitecode = json_data['invitecode']
             usr_handle = json_data['handle']
             usr_password = json_data['password']
-            usr_password_recheck = json_data['passwordretype']
             usr_name = json_data['username']
             usr_desc = json_data['description']
         except:
             raise Exception('You have attempted to upload an incomplete form.')
-        for i in [usr_invitecode, usr_handle, usr_password, usr_password_recheck, usr_name, usr_desc]:
+        for i in [usr_invitecode, usr_handle, usr_password, usr_name, usr_desc]:
             if type(i) != str:
                 raise Exception('You have attempted to make an unsuccessful JSON exploit.')
         if usr_invitecode != const.get_const('users-invite-code'):
             raise Exception('Erroneous invitation code given, you are not authorized to access this functionality.')
         # Checking handle validity
         self.create_user_check_handle(usr_handle)
-        # Checking password validity
-        self.create_user_check_password(usr_password, usr_password_recheck, usr_handle)
         # Checking user name validity
         self.create_user_check_username(usr_name)
         # Checking description validity.
