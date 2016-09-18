@@ -2,6 +2,7 @@
 import base64
 import binascii
 import gzip
+import hashlib
 import mako
 import mako.template
 import math
@@ -92,6 +93,16 @@ def preprocess_webpage(data, content_user, **additional_arguments):
 def get_current_time():
     """Gets the current time, in float since epoch."""
     return float(time.time())
+
+################################################################################
+# Hash operations
+
+def sha512_hex(data):
+    if type(data) == str:
+        data = data.encode('utf-8', 'ignore')
+    sha_bin = hashlib.sha512(data).digest()
+    sha_hex = binascii.hexlify(sha_bin)
+    return sha_hex.decode('utf-8', 'ignore')
 
 ################################################################################
 # UUID operations
