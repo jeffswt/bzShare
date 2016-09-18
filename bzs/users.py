@@ -8,6 +8,7 @@ from . import db
 from . import utils
 from . import sqlfs
 
+
 class User:
     """ A user that acts as a fundamental functional group in bzShare. """
     def __init__(self, handle=None, password=None, usergroups=None, usr_name=None, usr_description=None, master=None):
@@ -16,7 +17,8 @@ class User:
         # While not exceeding the limit of 32-byte length
         self.handle          = handle or 'guest'
         # Password is defaultly set to blank.
-        self.password        = password or utils.sha512_hex('')
+        self.password        = utils.password_hashed(password or utils.password_make(''))
+        print(self.password)
         # A group of usergroups that the user belongs to.
         self.usergroups      = usergroups or {'public'}
         # Cookies that are used to login.
@@ -154,7 +156,7 @@ class UserManagerType:
         if 'kernel' not in self.users:
             n_usr = User(
                 handle = 'kernel',
-                password = utils.sha512_hex(const.get_const('server-admin-password')),
+                password = utils.password_make(const.get_const('server-admin-password')),
                 usergroups = {'public'},
                 usr_name = 'bzShare Kernel',
                 usr_description = 'The core manager of bzShare.',
@@ -256,9 +258,10 @@ class UserManagerType:
 
     def login_user(self, handle, password):
         usr = self.get_user_by_name(handle)
+        print(utils.password_hashed(password))
         if usr.handle == 'guest':
             raise Exception('Username or password incorrect.')
-        if usr.password != password:
+        if usr.password != utils.password_hashed(password):
             raise Exception('Username or password incorrect.')
         if usr.banned != False:
             raise Exception('Access to the user had been banned by the server administrator, reason: "%s". Contact the server administrator to restore your account.' % user.banned)

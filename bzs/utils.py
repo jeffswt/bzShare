@@ -104,6 +104,42 @@ def sha512_hex(data):
     sha_hex = binascii.hexlify(sha_bin)
     return sha_hex.decode('utf-8', 'ignore')
 
+def password_hashed(pswin):
+    """ Create a high computational complexity password hashing algorithm. """
+    def MD100_xmcp_shile(pswin):
+        """ MD100 hashing algorithm created by @xmcp. Each call on this function
+        causes 1 iteration and only. Source:
+
+        https://github.com/xmcp/shile/blob/master/hasher.py """
+        psw1=hashlib.sha224()
+        psw1.update(pswin.encode())
+        psw2=hashlib.sha256()
+        psw2.update(pswin[::-1].encode())
+        psw3=hashlib.sha384()
+        psw3.update(pswin.center(100, 'a').encode())
+        psw4=hashlib.sha512()
+        psw4.update(pswin.swapcase().encode())
+        psw5=hashlib.sha1()
+        psw5.update(base64.b64encode(pswin.encode()))
+        psw6=hashlib.md5()
+        psw6.update(base64.b32encode(pswin.rjust(100, 'a').encode()))
+        return psw1.hexdigest()[0:16] + psw2.hexdigest()[0:16] + \
+               psw3.hexdigest()[0:16] + psw4.hexdigest()[0:16] + \
+               psw5.hexdigest()[0:16] + psw6.hexdigest()[0:16]
+    # Iterations...
+    magic_str = 'esloplwnmhcelfqbevnmjcxyhvshiejhdvecrebngyrsahqlirwtgpieopqwokdb'
+    magic_num = 233 # Laugh out loud
+    magic_cnt = 42
+    for i in range(0, magic_num):
+        pswin = sha512_hex((magic_str + MD100_xmcp_shile(pswin)) * magic_cnt)
+    return pswin
+
+def password_make(inp):
+    return sha512_hex(inp)
+
+def password_make_hashed(inp):
+    return password_hashed(password_make(inp))
+
 ################################################################################
 # UUID operations
 
