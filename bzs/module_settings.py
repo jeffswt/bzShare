@@ -77,7 +77,8 @@ class ProfileEditHandler(tornado.web.RequestHandler):
                     users.UserManager.create_user_check_username(usr_name)
                     users.UserManager.create_user_check_description(usr_desc)
                     # Done validing, now modifying user
-                    this_user.password = usr_password
+                    if usr_password != utils.sha512_hex(''):
+                        this_user.password = usr_password
                     this_user.usr_name = usr_name
                     this_user.usr_description = usr_desc
                     # Uploading to SQL database
