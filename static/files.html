@@ -66,7 +66,7 @@
                         <a data-toggle="collapse" href="#files-upload-placeholder-collapse">
                         <div class="box-header with-border">
                             <h4 class="box-title pull-left" style="padding-right:20px">
-                                Uploading files...
+                                Uploading files... <small id="upload-progress" style="color: #888888;"></small>
                             </h4>
                         </div>
                         </a>
@@ -528,6 +528,7 @@ var bzsFilesUploadWork = function() {
             'style', 'width:' + percentage + '%');
         work_target.children[1].children[0].children[0].
             setAttribute('class', 'progress-bar progress-bar-primary progress-bar-striped');
+        $('#upload-progress').html(percentage + '%');
         return ;
     }
     var completeCallback = function(event) {
