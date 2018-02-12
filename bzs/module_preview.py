@@ -44,7 +44,7 @@ class PreviewHandler(tornado.web.RequestHandler):
                 pass
             elif 'text/' in file_mime:
                 # Plain text
-                file_data = 'something'
+                file_data = '<h1>(This file is plaintext. <a href="javascript:bzsHistoryRollback()">Click here to go back.</a>)</h1>'
                 pass
             elif 'video/' in file_mime or 'audio/' in file_mime:
                 # Videos and audios using video.js.
